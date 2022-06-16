@@ -13,3 +13,14 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+#SSL
+SSL/
+*.pem
+
+#ENV
+*.env
+
+#log files
+logs/
+*.log
