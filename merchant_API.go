@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"net/http"
 )
+
+//var wg sync.WaitGroup
 
 func main() {
 
 	//testVoucher := `{"ID": "dsfadfa", "Amount": 2, "VendorUsed": "NTUC"}`
 	//
 	//if readV, err := readVoucher([]byte(testVoucher)); err != nil {
-	//	ErrorLogger.Println("unable to reading voucher:", err)
+	//	ErrorLogger.Println("unable to read voucher:", err)
 	//} else {
 	//	fmt.Printf("%+v\n", readV)
 	//	validateVoucher(readV)
@@ -21,10 +22,11 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", home)
-	router.HandleFunc("/vendorAPI/v1/process_voucher", processVoucher).Methods("POST")
+	//router.HandleFunc("/vendorAPI/v1/process_voucher", processVoucher).Methods("POST")
+	router.HandleFunc("/merchant/v1/consume_voucher", consumeVoucher).Methods("POST")
 
 	fmt.Println("Listening on port 8080")
-	err := http.ListenAndServeTLS("localhost:8080", "./SSL/cert03.pem", "./SSL/key03.pem", router)
+	err := http.ListenAndServeTLS("localhost:8080", "./SSL/localhost.cert.pem", "./SSL/localhost.key.pem", router)
 	if err != nil {
 		ErrorLogger.Fatal("Error:", err)
 	}

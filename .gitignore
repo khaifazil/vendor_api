@@ -24,3 +24,7 @@ SSL/
 #log files
 logs/
 *.log
+
+#datasources
+.idea/dataSources.xml
+sqldialects.xml
