@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -154,8 +156,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 		temp = append(temp, newBranch)
 	}
 
-	//send post request to voucher system
-
+	//send post request to web portal
 	newJson := JsonReply{
 		Ok:  true,
 		Msg: "[MS-MERCHANTS]: created merchant data, successful",
@@ -168,13 +169,79 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(newJson)
-	//w.WriteHeader(http.StatusCreated)
 
 	////_, err = http.Post("https://localhost:5001/api/v1/voucher", "application/json", bytes.NewReader(jsonValue))
 	////if err != nil {
 	////	http.Error(w, "unable to send POST request", http.StatusBadGateway)
 	////	ErrorLogger.Println("unable to send post request", err)
 	////}
-	//
-	//json.NewEncoder(w).Encode(string(jsonValue))
+
+}
+
+func getMerchant(ID string, db *sql.DB) (MerchantData, error) {
+
+	var (
+		merchant_ID string
+		name        string
+		isActive    bool
+	)
+
+	err := db.QueryRow("SELECT * FROM merchants WHERE Merchant_ID = ?", ID).Scan(&merchant_ID, &name, isActive)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return MerchantData{}, err
+		}
+		return MerchantData{}, errors.New("Merchant not found in database")
+	}
+
+	result := MerchantData{
+		MerchantID:   merchant_ID,
+		MerchantName: name,
+		IsActive:     isActive,
+	}
+	return result, nil
+}
+
+func getAllMerchants(w http.ResponseWriter, r *http.Request) {
+	var (
+		merchant_ID string
+		name        string
+		isActive    bool
+	)
+
+	var merchants []MerchantData
+	db := openDatabase()
+
+	rows, err := db.Query("SELECT * FROM merchants")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "there are no merchants in database", http.StatusBadRequest)
+			ErrorLogger.Println("there are no merchants in database", err)
+			return
+		}
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if err = rows.Scan(&merchant_ID, &name, &isActive); err != nil {
+			http.Error(w, "unable to scan rows", http.StatusBadRequest)
+			ErrorLogger.Println("unable to scan rows", err)
+			return
+		}
+
+		temp := MerchantData{
+			MerchantID:   merchant_ID,
+			MerchantName: name,
+			IsActive:     isActive,
+		}
+
+		merchants = append(merchants, temp)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		Ok   bool
+		Msg  string
+		Data []MerchantData
+	}{true, "[MS-MERCHANTS]: retrieval of list of merchants, successful", merchants})
 }

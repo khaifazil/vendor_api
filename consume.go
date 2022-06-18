@@ -149,7 +149,7 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurre
 		}
 		newBranch.UnclaimedVouchers = append(newBranch.UnclaimedVouchers, v)
 		newBranch.AmountOwed += v.Amount
-		//branchList.addEndNode(*newBranch) //adds to linked list
+		branchList.addEndNode(*newBranch) //adds to linked list
 	} else {
 		b.UnclaimedVouchers = append(b.UnclaimedVouchers, v)
 		b.AmountOwed += v.Amount
