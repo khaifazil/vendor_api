@@ -94,12 +94,11 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		if voucher.IsValidated == true {
 			voucher.IsConsumed = true
 
-			merchantsList.storeConsumed(voucher)
+			branchList.storeConsumed(voucher)
 
 			w.Header().Set("Content-Type", "application/json")
-
 			json.NewEncoder(w).Encode(voucher)
-			fmt.Printf("%+v", *merchantsList.Head)
+			//fmt.Printf("%+v", *merchantsList.Head)
 		}
 	}
 
@@ -115,11 +114,11 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) { //TODO: add concurrency
 		ErrorLogger.Panicf("unable to insert into database: %v", err)
 	}
 
-	merchant, err := d.searchListForMerchant(v.MerchantID)
-	if err != nil {
-		ErrorLogger.Println(err) //TODO: create new merchant if no merchant found
-	}
+	//merchant, err := d.searchListForMerchant(v.MerchantID)
+	//if err != nil {
+	//	ErrorLogger.Println(err) //TODO: create new merchant if no merchant found
+	//}
 
-	merchant.UnclaimedVouchers = append(merchant.UnclaimedVouchers, v)
-	merchant.AmountOwed += v.Amount
+	//merchant.UnclaimedVouchers = append(merchant.UnclaimedVouchers, v)
+	//merchant.AmountOwed += v.Amount
 }

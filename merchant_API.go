@@ -20,13 +20,15 @@ func main() {
 	//	validateVoucher(readV)
 	//}
 
+	//fmt.Println(genID("Sheng Siong"))
+
 	router := mux.NewRouter()
 	router.HandleFunc("/", home)
 	//router.HandleFunc("/vendorAPI/v1/process_voucher", processVoucher).Methods("POST")
-	router.HandleFunc("/merchant/v1/consume_voucher", consumeVoucher).Methods("POST")
-
+	router.HandleFunc("/api/v1/merchants/consume_voucher", consumeVoucher).Methods("POST")
+	router.HandleFunc("/api/v1/merchants/", CreateMerchant).Methods("POST")
 	fmt.Println("Listening on port 8080")
-	err := http.ListenAndServeTLS("localhost:8080", "./SSL/localhost.cert.pem", "./SSL/localhost.key.pem", router)
+	err := http.ListenAndServeTLS("localhost:9091", "./SSL/localhost.cert.pem", "./SSL/localhost.key.pem", router)
 	if err != nil {
 		ErrorLogger.Fatal("Error:", err)
 	}

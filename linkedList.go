@@ -6,7 +6,7 @@ import (
 )
 
 type ListNode struct {
-	Data MerchantData
+	Data branch
 	Next *ListNode
 	Prev *ListNode
 }
@@ -21,9 +21,9 @@ func initDoublyLinkedList() *doublyLinkedList {
 	return &doublyLinkedList{}
 }
 
-func (d *doublyLinkedList) addFrontNode(merchant MerchantData) {
+func (d *doublyLinkedList) addFrontNode(b branch) {
 	newNode := &ListNode{
-		Data: merchant,
+		Data: b,
 	}
 
 	if d.Head == nil { //if list is empty
@@ -38,9 +38,9 @@ func (d *doublyLinkedList) addFrontNode(merchant MerchantData) {
 	d.size++
 }
 
-func (d *doublyLinkedList) addEndNode(merchant MerchantData) {
+func (d *doublyLinkedList) addEndNode(b branch) {
 	newNode := &ListNode{
-		Data: merchant,
+		Data: b,
 	}
 
 	if d.Head == nil {
