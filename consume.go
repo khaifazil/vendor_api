@@ -96,7 +96,13 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		if voucher.IsValidated == true {
 			voucher.IsConsumed = true
 
-			branchList.storeConsumed(voucher)
+			err := branchList.storeConsumed(voucher)
+			if err != nil {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				w.Write([]byte(err.Error()))
+				ErrorLogger.Println(err)
+				return
+			}
 			fmt.Printf("%+v", branchList.Head)
 
 			w.Header().Set("Content-Type", "application/json")
@@ -143,7 +149,7 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurre
 		}
 		newBranch.UnclaimedVouchers = append(newBranch.UnclaimedVouchers, v)
 		newBranch.AmountOwed += v.Amount
-		branchList.addEndNode(*newBranch) //adds to linked list
+		//branchList.addEndNode(*newBranch) //adds to linked list
 	} else {
 		b.UnclaimedVouchers = append(b.UnclaimedVouchers, v)
 		b.AmountOwed += v.Amount
