@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -48,16 +47,16 @@ func init() {
 
 }
 
-func (d *doublyLinkedList) searchListForBranch(target string) (*branch, error) {
+func (d *doublyLinkedList) searchListForBranch(target string) (*branch, bool) {
 	currentNode := d.Head
 	for currentNode != nil {
 
-		if currentNode.Data.MerchantID == target {
-			return &currentNode.Data, nil
+		if currentNode.Data.Code == target {
+			return &currentNode.Data, true
 		}
 		currentNode = currentNode.Next
 	}
-	return &branch{}, errors.New("merchant not found in list")
+	return &branch{}, false
 }
 
 func genID(name string) string {
@@ -67,6 +66,12 @@ func genID(name string) string {
 }
 
 func CreateMerchant(w http.ResponseWriter, r *http.Request) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("System recovered")
+		}
+	}()
 
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -102,10 +107,10 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 	branches := result["branches"]
 
-	for _, branch := range branches.([]interface{}) {
+	for _, b := range branches.([]interface{}) {
 
 		//check for duplicates
-		exists, err = branchExists(db, branch.(map[string]interface{})["code"].(string))
+		exists, err = branchExists(db, b.(map[string]interface{})["code"].(string))
 		if err != nil {
 			http.Error(w, "unable to query database:", http.StatusInternalServerError)
 			ErrorLogger.Panicln("unable to query database:", err)

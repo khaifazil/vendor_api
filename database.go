@@ -20,7 +20,7 @@ func openDatabase() *sql.DB {
 }
 
 func insertVoucherDB(v Voucher, db *sql.DB) error {
-	query := fmt.Sprintf("INSERT INTO consumed_vouchers (Voucher_ID, CustomerID, Merchant_name, Amount, Is_Consumed, Is_Claimed, Is_Validated) VALUES ('%s','%s','%s',%d,%v,%v,%v)", v.VID, v.CustomerID, v.MerchantID, v.Amount, v.IsConsumed, v.IsClaimed, v.IsValidated)
+	query := fmt.Sprintf("INSERT INTO consumed_vouchers (Voucher_ID, Customer_ID, Merchant_name, Amount, Is_Consumed, Is_Claimed, Is_Validated) VALUES ('%s','%s','%s',%d,%v,%v,%v)", v.VID, v.CustomerID, v.BranchCode, v.Amount, v.IsConsumed, v.IsClaimed, v.IsValidated)
 	//insert used voucher into table
 	_, err := db.Query(query)
 	if err != nil {

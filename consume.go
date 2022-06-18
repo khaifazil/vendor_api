@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"io/ioutil"
 	"net/http"
 )
@@ -11,7 +13,7 @@ type Voucher struct {
 	VID         string
 	CustomerID  string
 	Amount      int
-	MerchantID  string
+	BranchCode  string
 	IsValidated bool
 	IsConsumed  bool
 	IsClaimed   bool
@@ -95,30 +97,61 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 			voucher.IsConsumed = true
 
 			branchList.storeConsumed(voucher)
+			fmt.Printf("%+v", branchList.Head)
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(voucher)
-			//fmt.Printf("%+v", *merchantsList.Head)
+			json.NewEncoder(w).Encode(struct {
+				Ok   bool
+				Msg  string
+				Data Voucher
+			}{Ok: true, Msg: "[MS-MERCHANTS]: consume voucher, successful", Data: voucher})
 		}
 	}
 
 }
 
-func (d *doublyLinkedList) storeConsumed(v Voucher) { //TODO: add concurrency
+func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurrency
+
 	//Open database
 	db := openDatabase()
 	defer db.Close()
 	defer fmt.Println("Database closed")
 
+	//check if branch is in linked-list
+	b, exist := d.searchListForBranch(v.BranchCode)
+	if !exist { // if branch does not exist, check DB
+		var (
+			name       string
+			merchantID string
+			amount     int
+		)
+		//query row and returns data needed
+		err := db.QueryRow("SELECT Name, MerchantID, Amount_owed FROM merchant_branches WHERE Branch_Code = ?", v.BranchCode).Scan(&name, &merchantID, &amount)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return fmt.Errorf("unable to query db: %v", err)
+			}
+			return fmt.Errorf("branch does not exists in database: %v", err)
+		}
+		//creates new branch node
+		newBranch := &branch{
+			Code:              v.BranchCode,
+			Name:              name,
+			MerchantID:        merchantID,
+			AmountOwed:        amount,
+			UnclaimedVouchers: nil,
+		}
+		newBranch.UnclaimedVouchers = append(newBranch.UnclaimedVouchers, v)
+		newBranch.AmountOwed += v.Amount
+		branchList.addEndNode(*newBranch) //adds to linked list
+	} else {
+		b.UnclaimedVouchers = append(b.UnclaimedVouchers, v)
+		b.AmountOwed += v.Amount
+	}
+	//stores voucher into DB
 	if err := insertVoucherDB(v, db); err != nil {
 		ErrorLogger.Panicf("unable to insert into database: %v", err)
 	}
 
-	//merchant, err := d.searchListForMerchant(v.MerchantID)
-	//if err != nil {
-	//	ErrorLogger.Println(err) //TODO: create new merchant if no merchant found
-	//}
-
-	//merchant.UnclaimedVouchers = append(merchant.UnclaimedVouchers, v)
-	//merchant.AmountOwed += v.Amount
+	return nil
 }
