@@ -103,7 +103,12 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 				ErrorLogger.Println(err)
 				return
 			}
-			fmt.Printf("%+v", branchList.Head)
+
+			db := openDatabase()
+			defer db.Close()
+			defer fmt.Println("Database Closed")
+
+			db.Query("UPDATE merchant_branches SET Amount_owed = Amount_owed + ? WHERE Branch_Code = ?", voucher.Amount, voucher.BranchCode)
 
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(struct {
