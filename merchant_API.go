@@ -28,6 +28,7 @@ func main() {
 	router.HandleFunc("/api/v1/merchants/consume_voucher", consumeVoucher).Methods("POST")
 	router.HandleFunc("/api/v1/merchants/", CreateMerchant).Methods("POST")
 	router.HandleFunc("/api/v1/merchants/{merchantID}/branches", addBranches).Methods("POST")
+	router.HandleFunc("/api/v1/merchants/{merchantID}", getMerchant).Methods("GET")
 	router.HandleFunc("/api/v1/merchants/", getAllMerchants).Methods("GET")
 
 	fmt.Println("Listening on port 8080")
