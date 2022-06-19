@@ -3,8 +3,8 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -95,7 +95,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 	defer fmt.Println("Database closed")
 
 	//check for duplicates
-	exists, err := merchantExists(db, result["name"].(string))
+	exists, err := merchantExistsName(db, result["name"].(string))
 	if err != nil {
 		http.Error(w, "unable to query database:", http.StatusInternalServerError)
 		ErrorLogger.Panicln("unable to query database:", err)
@@ -142,7 +142,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 		//save branch to database
 		if err = insertNewBranchDB(code.(string), newID, name.(string), db); err != nil {
-			ErrorLogger.Panicf("unable to insert new Merchant:", err)
+			ErrorLogger.Panicf("unable to insert new branch:", err)
 		}
 		//save branch into linked list
 		newBranch := branch{
@@ -178,29 +178,29 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getMerchant(ID string, db *sql.DB) (MerchantData, error) {
-
-	var (
-		merchant_ID string
-		name        string
-		isActive    bool
-	)
-
-	err := db.QueryRow("SELECT * FROM merchants WHERE Merchant_ID = ?", ID).Scan(&merchant_ID, &name, isActive)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return MerchantData{}, err
-		}
-		return MerchantData{}, errors.New("Merchant not found in database")
-	}
-
-	result := MerchantData{
-		MerchantID:   merchant_ID,
-		MerchantName: name,
-		IsActive:     isActive,
-	}
-	return result, nil
-}
+//func getMerchant(ID string, db *sql.DB) (MerchantData, error) {
+//
+//	var (
+//		merchant_ID string
+//		name        string
+//		isActive    bool
+//	)
+//
+//	err := db.QueryRow("SELECT * FROM merchants WHERE Merchant_ID = ?", ID).Scan(&merchant_ID, &name, isActive)
+//	if err != nil {
+//		if err != sql.ErrNoRows {
+//			return MerchantData{}, err
+//		}
+//		return MerchantData{}, errors.New("Merchant not found in database")
+//	}
+//
+//	result := MerchantData{
+//		MerchantID:   merchant_ID,
+//		MerchantName: name,
+//		IsActive:     isActive,
+//	}
+//	return result, nil
+//}
 
 func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -211,6 +211,8 @@ func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 
 	var merchants []MerchantData
 	db := openDatabase()
+	defer db.Close()
+	defer fmt.Println("Database closed")
 
 	rows, err := db.Query("SELECT * FROM merchants")
 	if err != nil {
@@ -244,4 +246,87 @@ func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 		Msg  string
 		Data []MerchantData
 	}{true, "[MS-MERCHANTS]: retrieval of list of merchants, successful", merchants})
+}
+
+func addBranches(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	var result map[string]interface{}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "422 - Unable to read request body", http.StatusUnprocessableEntity)
+		ErrorLogger.Println("Unable to read request body:", err)
+		return
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		http.Error(w, "422 - Send in branch details in JSON format", http.StatusUnprocessableEntity)
+		ErrorLogger.Println("unable to unmarshal JSON:", err)
+		return
+	}
+
+	db := openDatabase()
+	defer db.Close()
+	defer fmt.Println("Database closed")
+
+	//check if merchant exist in database
+	exist, err := merchantExistsID(db, params["merchantID"])
+	if err != nil {
+		http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+		ErrorLogger.Println("unable to query database", err)
+		return
+	}
+
+	//if does not exist return error
+	if !exist {
+		http.Error(w, "404 - Merchant ID does not exist in database", http.StatusNotFound)
+		ErrorLogger.Println("Merchant ID does not exist in database")
+	}
+	//if exists check for branch duplicates
+	branches := result["branches"]
+	for _, b := range branches.([]interface{}) {
+
+		//check for duplicates
+		exist, err := branchExists(db, b.(map[string]interface{})["code"].(string))
+		if err != nil {
+			http.Error(w, "500 - unable to query database:", http.StatusInternalServerError)
+			ErrorLogger.Panicln("unable to query database:", err)
+		}
+		if exist {
+			http.Error(w, "409 - Duplicate Branch Code", http.StatusConflict)
+			ErrorLogger.Println("409 - Duplicate Branch code")
+			return
+		}
+	}
+	//if no duplicates create branches
+	var temp []branch
+	for _, b := range branches.([]interface{}) {
+		code := b.(map[string]interface{})["code"]
+		name := b.(map[string]interface{})["name"]
+
+		//save branch to database
+		if err = insertNewBranchDB(code.(string), params["merchantID"], name.(string), db); err != nil {
+			ErrorLogger.Panicf("unable to insert new branch:", err)
+		}
+		//save branch into linked list
+		newBranch := branch{
+			Code:              code.(string),
+			Name:              name.(string),
+			MerchantID:        params["merchantID"],
+			AmountOwed:        0,
+			UnclaimedVouchers: nil,
+		}
+		branchList.addEndNode(newBranch)
+		temp = append(temp, newBranch)
+	}
+
+	//send post request to web portal
+	reply := struct {
+		OK   bool
+		Msg  string
+		Data []branch
+	}{true, "[MS-MERCHANTS]: branches added to merchant data, successful", temp}
+
+	//send back results
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reply)
 }

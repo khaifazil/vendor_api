@@ -49,9 +49,21 @@ func insertNewBranchDB(code string, ID string, name string, db *sql.DB) error {
 	return nil
 }
 
-func merchantExists(db *sql.DB, name string) (bool, error) {
+func merchantExistsName(db *sql.DB, name string) (bool, error) {
 	sqlStmt := `SELECT name FROM merchants WHERE name = ?`
 	err := db.QueryRow(sqlStmt, name).Scan(&name)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
+func merchantExistsID(db *sql.DB, ID string) (bool, error) {
+	sqlStmt := `SELECT Merchant_ID FROM merchants WHERE Merchant_ID = ?`
+	err := db.QueryRow(sqlStmt, ID).Scan(&ID)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return false, err
