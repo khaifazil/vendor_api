@@ -129,7 +129,7 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurre
 	defer fmt.Println("Database closed")
 
 	//check if branch is in linked-list
-	b, exist := d.searchListForBranch(v.BranchCode)
+	b, exist := d.searchListForNode(v.BranchCode)
 	if !exist { // if branch does not exist, check DB
 		var (
 			name       string
@@ -156,8 +156,8 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurre
 		newBranch.AmountOwed += v.Amount
 		branchList.addEndNode(*newBranch) //adds to linked list
 	} else {
-		b.UnclaimedVouchers = append(b.UnclaimedVouchers, v)
-		b.AmountOwed += v.Amount
+		b.Data.UnclaimedVouchers = append(b.Data.UnclaimedVouchers, v)
+		b.Data.AmountOwed += v.Amount
 	}
 	//stores voucher into DB
 	if err := insertVoucherDB(v, db); err != nil {

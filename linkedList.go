@@ -14,7 +14,7 @@ type ListNode struct {
 type doublyLinkedList struct {
 	Head *ListNode
 	Tail *ListNode
-	size int
+	Size int
 }
 
 func initDoublyLinkedList() *doublyLinkedList {
@@ -35,7 +35,7 @@ func (d *doublyLinkedList) addFrontNode(b branch) {
 		d.Head = newNode
 		newNode.Prev = nil
 	}
-	d.size++
+	d.Size++
 }
 
 func (d *doublyLinkedList) addEndNode(b branch) {
@@ -52,7 +52,7 @@ func (d *doublyLinkedList) addEndNode(b branch) {
 		d.Tail = newNode
 		newNode.Next = nil
 	}
-	d.size++
+	d.Size++
 }
 
 func (d *doublyLinkedList) traverseForward() error {
@@ -82,5 +82,46 @@ func (d *doublyLinkedList) traverseBackwards() error {
 }
 
 func (d *doublyLinkedList) length() int {
-	return d.size
+	return d.Size
+}
+
+func (d *doublyLinkedList) removeNode(node *ListNode) error {
+
+	if d.Size == 0 { //if list is empty
+		return errors.New("linkedList is empty")
+	} else if d.Size == 1 { //if list has only 1 node
+		d.Head = nil
+		d.Tail = nil
+		d.Size--
+	} else if d.Head == node { //if node is head of list
+		d.Head = node.Next
+		node.Next = nil
+		d.Head.Prev = nil
+		d.Size--
+	} else if d.Tail == node { // if node is tail of list
+		d.Tail = node.Prev
+		node.Prev = nil
+		d.Tail.Next = nil
+		d.Size--
+	} else { // if node is somewhere in the middle
+		node.Next.Prev = node.Prev
+		node.Prev.Next = node.Next
+		node.Next = nil
+		node.Prev = nil
+		d.Size--
+	}
+
+	return nil
+}
+
+func (d *doublyLinkedList) searchListForNode(branchCode string) (*ListNode, bool) {
+	currentNode := d.Head
+	for currentNode != nil {
+
+		if currentNode.Data.Code == branchCode {
+			return currentNode, true
+		}
+		currentNode = currentNode.Next
+	}
+	return nil, false
 }

@@ -17,12 +17,6 @@ type MerchantData struct {
 	IsActive     bool
 }
 
-type FormData struct {
-	Name     string   `json:"name"`
-	Branches []branch `json:"branches"`
-	IsActive bool     `json:"is_active"`
-}
-
 type JsonReply struct {
 	Ok   bool   `json:"ok"`
 	Msg  string `json:"msg"`
@@ -44,22 +38,6 @@ type branch struct {
 }
 
 var branchList doublyLinkedList
-
-func init() {
-
-}
-
-func (d *doublyLinkedList) searchListForBranch(target string) (*branch, bool) {
-	currentNode := d.Head
-	for currentNode != nil {
-
-		if currentNode.Data.Code == target {
-			return &currentNode.Data, true
-		}
-		currentNode = currentNode.Next
-	}
-	return &branch{}, false
-}
 
 func genID(name string) string {
 	tn := time.Now().Format("20060102150405")
@@ -178,29 +156,49 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//func getMerchant(ID string, db *sql.DB) (MerchantData, error) {
-//
-//	var (
-//		merchant_ID string
-//		name        string
-//		isActive    bool
-//	)
-//
-//	err := db.QueryRow("SELECT * FROM merchants WHERE Merchant_ID = ?", ID).Scan(&merchant_ID, &name, isActive)
-//	if err != nil {
-//		if err != sql.ErrNoRows {
-//			return MerchantData{}, err
-//		}
-//		return MerchantData{}, errors.New("Merchant not found in database")
-//	}
-//
-//	result := MerchantData{
-//		MerchantID:   merchant_ID,
-//		MerchantName: name,
-//		IsActive:     isActive,
-//	}
-//	return result, nil
-//}
+func getMerchant(w http.ResponseWriter, r *http.Request) {
+
+	var (
+		merchantID string
+		name       string
+		isActive   bool
+	)
+
+	params := mux.Vars(r)
+	ID := params["merchantID"]
+	fmt.Println(ID)
+
+	db := openDatabase()
+	defer db.Close()
+	defer fmt.Println("Database closed")
+
+	err := db.QueryRow("SELECT * FROM merchants WHERE Merchant_ID = ?", ID).Scan(&merchantID, &name, &isActive)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			ErrorLogger.Println("500 - unable to query database", err)
+			return
+		}
+		http.Error(w, "404 - Merchant ID not found in database", http.StatusNotFound)
+		ErrorLogger.Println("404 - Merchant ID not found in database", err)
+		return
+	}
+
+	result := MerchantData{
+		MerchantID:   merchantID,
+		MerchantName: name,
+		IsActive:     isActive,
+	}
+
+	reply := struct {
+		OK   bool
+		Msg  string
+		Data MerchantData
+	}{true, "[MS-MERCHANTS]: retrieved merchant data, successful", result}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reply)
+}
 
 func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -280,6 +278,7 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 	if !exist {
 		http.Error(w, "404 - Merchant ID does not exist in database", http.StatusNotFound)
 		ErrorLogger.Println("Merchant ID does not exist in database")
+		return
 	}
 	//if exists check for branch duplicates
 	branches := result["branches"]
@@ -327,6 +326,95 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 	}{true, "[MS-MERCHANTS]: branches added to merchant data, successful", temp}
 
 	//send back results
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reply)
+}
+
+func removeBranch(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	merchantID := params["merchantID"]
+	branchCode := params["branchCode"]
+
+	var (
+		name          string
+		amountOwed    int
+		amountClamied int
+	)
+
+	db := openDatabase()
+	defer db.Close()
+	defer fmt.Println("Database closed")
+
+	//check if merchantID exists
+	exists, err := merchantExistsID(db, merchantID)
+	if err != nil {
+		http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+		ErrorLogger.Println("unable to query database", err)
+		return
+	}
+
+	if !exists {
+		http.Error(w, "404 - Merchant ID not found in database", http.StatusNotFound)
+		ErrorLogger.Println("404 - Merchant ID not found in database")
+		return
+	}
+	//check if branch exists
+	err = db.QueryRow("SELECT Name, Amount_owed, Amount_claimed FROM merchant_branches WHERE Branch_Code = ?", branchCode).Scan(&name, &amountOwed, &amountClamied)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			ErrorLogger.Println("500 - unable to query database", err)
+			return
+		}
+		http.Error(w, "404 - Branch not found in database", http.StatusNotFound)
+		ErrorLogger.Println("404 - Branch not found in database", err)
+		return
+	}
+	//check if there is outstanding balance for the branch
+	//if balance is not 0 reject
+	if amountOwed < 0 {
+		http.Error(w, "403 - Request unsuccessful, there are unclaimed funds tied to branch", http.StatusForbidden)
+		ErrorLogger.Println("403 - Request unsuccessful, there are unclaimed funds tied to branch")
+		return
+	}
+	//if all checks pass delete branch from database
+	_, err = db.Exec("DELETE FROM merchant_branches WHERE Branch_Code = ?", branchCode)
+	//delete from linked list
+	node, exists := branchList.searchListForNode(branchCode)
+	if exists {
+
+		reply := struct {
+			Ok   bool
+			Msg  string
+			Data branch
+		}{true, "[MS-MERCHANTS]: branch removed from merchant data, successful", node.Data}
+
+		err := branchList.removeNode(node)
+		if err != nil {
+			http.Error(w, "500 - Error removing branch", http.StatusInternalServerError)
+			ErrorLogger.Println("unable to remove node from list:", err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(reply)
+		return
+	}
+
+	tempBranch := branch{
+		Code:              branchCode,
+		Name:              name,
+		MerchantID:        merchantID,
+		AmountOwed:        0,
+		UnclaimedVouchers: nil,
+	}
+
+	reply := struct {
+		Ok   bool
+		Msg  string
+		data branch
+	}{true, "[MS-MERCHANTS]: branch removed from merchant data, successful", tempBranch}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reply)
 }

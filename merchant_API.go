@@ -30,6 +30,7 @@ func main() {
 	router.HandleFunc("/api/v1/merchants/{merchantID}/branches", addBranches).Methods("POST")
 	router.HandleFunc("/api/v1/merchants/{merchantID}", getMerchant).Methods("GET")
 	router.HandleFunc("/api/v1/merchants/", getAllMerchants).Methods("GET")
+	router.HandleFunc("/api/v1/merchants/{merchantID}/{branchCode}", removeBranch).Methods("GET")
 
 	fmt.Println("Listening on port 8080")
 	err := http.ListenAndServeTLS("localhost:9091", "./SSL/localhost.cert.pem", "./SSL/localhost.key.pem", router)
