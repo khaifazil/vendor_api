@@ -418,3 +418,55 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reply)
 }
+
+func deactivateMerchant(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	merchantID := params["merchantID"]
+
+	db := openDatabase()
+	defer db.Close()
+	defer fmt.Println("Database closed")
+
+	exists, err := merchantExistsID(db, merchantID)
+	if err != nil {
+		http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+		ErrorLogger.Println("unable to query database", err)
+		return
+	}
+
+	if !exists {
+		http.Error(w, "404 - Merchant ID not found in database", http.StatusNotFound)
+		ErrorLogger.Println("404 - Merchant ID not found in database")
+		return
+	}
+
+	_, err = db.Exec("UPDATE merchants SET is_active = FALSE WHERE Merchant_ID = ?", merchantID)
+	if err != nil {
+		http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+		ErrorLogger.Println("500 - unable to query database", err)
+		return
+	}
+
+	var (
+		name     string
+		isActive bool
+	)
+
+	db.QueryRow("SELECT Name, is_active FROM merchants WHERE Merchant_ID = ?", merchantID).Scan(&name, &isActive)
+
+	m := MerchantData{
+		MerchantID:   merchantID,
+		MerchantName: name,
+		IsActive:     isActive,
+	}
+	reply := struct {
+		Ok   bool
+		Msg  string
+		Data MerchantData
+	}{true, "[MS-MERCHANTS]: deactivated merchant data, successful", m}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reply)
+
+}
