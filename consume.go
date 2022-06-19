@@ -93,6 +93,23 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		db := openDatabase()
+		defer closeDatabase(db)
+
+		var isActive bool
+		err = db.QueryRow("SELECT is_active FROM merchants AS m JOIN merchant_branches AS mb ON m.Merchant_ID = mb.MerchantID WHERE Branch_Code = ?;", voucher.BranchCode).Scan(&isActive)
+		if err != nil {
+			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			ErrorLogger.Println("500 - unable to query database", err)
+			return
+		}
+
+		if !isActive {
+			http.Error(w, "403 - Merchant is not active", http.StatusForbidden)
+			ErrorLogger.Println("403 - Merchant is not active")
+			return
+		}
+
 		if voucher.IsValidated == true {
 			voucher.IsConsumed = true
 

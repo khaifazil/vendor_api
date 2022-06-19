@@ -33,7 +33,7 @@ func main() {
 	router.HandleFunc("/api/v1/merchants/{merchantID}/{branchCode}", removeBranch).Methods("GET")
 	router.HandleFunc("/api/v1/merchants/{merchantID}", updateMerchantIsActive).Methods("PUT")
 
-	fmt.Println("Listening on port 8080")
+	fmt.Println("Listening on port 9091")
 	err := http.ListenAndServeTLS("localhost:9091", "./SSL/localhost.cert.pem", "./SSL/localhost.key.pem", router)
 	if err != nil {
 		ErrorLogger.Fatal("Error:", err)
