@@ -25,9 +25,8 @@ func closeDatabase(db *sql.DB) {
 }
 
 func insertVoucherDB(v Voucher, db *sql.DB) error {
-	query := fmt.Sprintf("INSERT INTO consumed_vouchers (Voucher_ID, Customer_ID, Merchant_name, Amount, Is_Consumed, Is_Claimed, Is_Validated) VALUES ('%s','%s','%s',%d,%v,%v,%v)", v.VID, v.CustomerID, v.BranchCode, v.Amount, v.IsConsumed, v.IsClaimed, v.IsValidated)
 	//insert used voucher into table
-	_, err := db.Query(query)
+	_, err := db.Exec("INSERT INTO consumed_vouchers (VID, Branch_ID, Customer_ID, Amount, Is_Consumed, Is_Claimed, Is_Validated) VALUES (?, ?,?,?,?,?,?)", v.VID, v.BranchID, v.CustomerID, v.Amount, v.IsConsumed, v.IsClaimed, v.IsValidated)
 	if err != nil {
 		return err
 	}
@@ -44,10 +43,9 @@ func insertNewMerchantDB(ID string, name string, db *sql.DB) error {
 	return nil
 }
 
-func insertNewBranchDB(code string, ID string, name string, db *sql.DB) error {
-	query := fmt.Sprintf("INSERT INTO merchant_Branches (Branch_Code, Name, MerchantID) VALUES ('%s','%s','%s')", code, name, ID)
+func insertNewBranchDB(branchID, code, merchantID, name string, db *sql.DB) error {
 	//insert used voucher into table
-	_, err := db.Query(query)
+	_, err := db.Exec("INSERT INTO merchant_Branches (Branch_ID, Branch_Code, Name, MerchantID) VALUES (?, ?, ?, ?)", branchID, code, name, merchantID)
 	if err != nil {
 		return err
 	}
@@ -78,9 +76,9 @@ func merchantExistsID(db *sql.DB, ID string) (bool, error) {
 	return true, nil
 }
 
-func branchExists(db *sql.DB, code string) (bool, error) {
-	sqlStmt := `SELECT Branch_Code FROM merchant_branches WHERE Branch_Code = ?`
-	err := db.QueryRow(sqlStmt, code).Scan(&code)
+func branchExists(db *sql.DB, target, field string) (bool, error) {
+	sqlStmt := `SELECT ? FROM merchant_branches WHERE ? = ?`
+	err := db.QueryRow(sqlStmt, field, field, target).Scan(&target)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return false, err

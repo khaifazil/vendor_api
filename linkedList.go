@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 )
 
 type ListNode struct {
@@ -55,29 +54,31 @@ func (d *doublyLinkedList) addEndNode(b branch) {
 	d.Size++
 }
 
-func (d *doublyLinkedList) traverseForward() error {
+func (d *doublyLinkedList) traverseForward(c chan branch) error {
 	if d.Head == nil {
 		return errors.New("traversal error: List is empty")
 	}
 
 	currentNode := d.Head
 	for currentNode != nil {
-		fmt.Printf("%+v\n", currentNode.Data) //TODO: change to send query or marshal to json
+		c <- currentNode.Data
 		currentNode = currentNode.Next
 	}
+	close(c)
 	return nil
 }
 
-func (d *doublyLinkedList) traverseBackwards() error {
+func (d *doublyLinkedList) traverseBackwards(c chan branch) error {
 	if d.Head == nil {
 		return errors.New("traversal error: List is empty")
 	}
 
-	currentNode := d.Tail
+	currentNode := d.Head
 	for currentNode != nil {
-		fmt.Printf("%+v\n", currentNode.Data) //TODO: change to send query or marshal to json
-		currentNode = currentNode.Prev
+		c <- currentNode.Data
+		currentNode = currentNode.Next
 	}
+	close(c)
 	return nil
 }
 
@@ -114,14 +115,26 @@ func (d *doublyLinkedList) removeNode(node *ListNode) error {
 	return nil
 }
 
-func (d *doublyLinkedList) searchListForNode(branchCode string) (*ListNode, bool) {
+func (d *doublyLinkedList) searchListForNode(branchID string) (*ListNode, bool) {
 	currentNode := d.Head
 	for currentNode != nil {
 
-		if currentNode.Data.Code == branchCode {
+		if currentNode.Data.BranchID == branchID {
 			return currentNode, true
 		}
 		currentNode = currentNode.Next
 	}
 	return nil, false
+}
+
+func (d *doublyLinkedList) deleteAllNodes() error {
+	if d.Size == 0 {
+		return errors.New("linked list is empty")
+	}
+
+	d.Head = nil
+	d.Tail = nil
+	d.Size = 0
+
+	return nil
 }

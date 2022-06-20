@@ -13,7 +13,7 @@ type Voucher struct {
 	VID         string
 	CustomerID  string
 	Amount      int
-	BranchCode  string
+	BranchID    string
 	IsValidated bool
 	IsConsumed  bool
 	IsClaimed   bool
@@ -81,7 +81,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		ErrorLogger.Println("Unable to read request body:", err)
-		http.Error(w, "Unable to read request body", http.StatusUnprocessableEntity)
+		http.Error(w, "Unable to read request body", http.StatusUnprocessableEntity) //TODO: change error
 		return
 	}
 
@@ -89,7 +89,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		voucher, err := readVoucher(resp)
 		if err != nil {
 			ErrorLogger.Println("unable to marshal JSON: ", err)
-			http.Error(w, "unable to marshal JSON", http.StatusUnprocessableEntity)
+			http.Error(w, "unable to marshal JSON", http.StatusUnprocessableEntity) //TODO: change error
 			return
 		}
 
@@ -97,15 +97,15 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		defer closeDatabase(db)
 
 		var isActive bool
-		err = db.QueryRow("SELECT is_active FROM merchants AS m JOIN merchant_branches AS mb ON m.Merchant_ID = mb.MerchantID WHERE Branch_Code = ?;", voucher.BranchCode).Scan(&isActive)
+		err = db.QueryRow("SELECT is_active FROM merchants AS m JOIN merchant_branches AS mb ON m.Merchant_ID = mb.MerchantID WHERE Branch_ID = ?;", voucher.BranchID).Scan(&isActive)
 		if err != nil {
-			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			http.Error(w, "500 - unable to query database", http.StatusInternalServerError) //TODO: change error
 			ErrorLogger.Println("500 - unable to query database", err)
 			return
 		}
 
 		if !isActive {
-			http.Error(w, "403 - Merchant is not active", http.StatusForbidden)
+			http.Error(w, "403 - Merchant is not active", http.StatusForbidden) //TODO: change error
 			ErrorLogger.Println("403 - Merchant is not active")
 			return
 		}
@@ -115,7 +115,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 
 			err := branchList.storeConsumed(voucher)
 			if err != nil {
-				w.WriteHeader(http.StatusUnprocessableEntity)
+				w.WriteHeader(http.StatusUnprocessableEntity) //TODO: change error
 				w.Write([]byte(err.Error()))
 				ErrorLogger.Println(err)
 				return
@@ -125,7 +125,8 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 			defer db.Close()
 			defer fmt.Println("Database Closed")
 
-			db.Query("UPDATE merchant_branches SET Amount_owed = Amount_owed + ? WHERE Branch_Code = ?", voucher.Amount, voucher.BranchCode)
+			//update merchant database amount owed
+			db.Query("UPDATE merchant_branches SET Amount_owed = Amount_owed + ? WHERE Branch_ID = ?", voucher.Amount, voucher.BranchID)
 
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(struct {
@@ -146,15 +147,16 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurre
 	defer fmt.Println("Database closed")
 
 	//check if branch is in linked-list
-	b, exist := d.searchListForNode(v.BranchCode)
+	b, exist := d.searchListForNode(v.BranchID)
 	if !exist { // if branch does not exist, check DB
 		var (
 			name       string
 			merchantID string
 			amount     int
+			branchCode string
 		)
 		//query row and returns data needed
-		err := db.QueryRow("SELECT Name, MerchantID, Amount_owed FROM merchant_branches WHERE Branch_Code = ?", v.BranchCode).Scan(&name, &merchantID, &amount)
+		err := db.QueryRow("SELECT Name, MerchantID, Amount_owed, Branch_Code FROM merchant_branches WHERE Branch_ID = ?", v.BranchID).Scan(&name, &merchantID, &amount, &branchCode)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				return fmt.Errorf("unable to query db: %v", err)
@@ -163,10 +165,11 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurre
 		}
 		//creates new branch node
 		newBranch := &branch{
-			Code:              v.BranchCode,
+			BranchID:          v.BranchID,
 			Name:              name,
+			BranchCode:        branchCode,
 			MerchantID:        merchantID,
-			AmountOwed:        amount,
+			AmountOwed:        0,
 			UnclaimedVouchers: nil,
 		}
 		newBranch.UnclaimedVouchers = append(newBranch.UnclaimedVouchers, v)

@@ -17,12 +17,6 @@ type MerchantData struct {
 	IsActive     bool
 }
 
-type JsonReply struct {
-	Ok   bool   `json:"ok"`
-	Msg  string `json:"msg"`
-	Data data   `json:"data"`
-}
-
 type data struct {
 	MerchantID   string   `json:"merchantID"`
 	MerchantName string   `json:"merchantName"`
@@ -30,8 +24,9 @@ type data struct {
 }
 
 type branch struct {
-	Code              string `json:"code"`
-	Name              string `json:"name"`
+	BranchID          string
+	Name              string
+	BranchCode        string
 	MerchantID        string
 	AmountOwed        int
 	UnclaimedVouchers []Voucher
@@ -87,10 +82,13 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 	branches := result["branches"]
 
-	for _, b := range branches.([]interface{}) {
+	//generate merchantID
+	newID := genID(result["name"].(string))
 
+	for _, b := range branches.([]interface{}) {
+		branchID := newID + "-" + b.(map[string]interface{})["code"].(string)
 		//check for duplicates
-		exists, err = branchExists(db, b.(map[string]interface{})["code"].(string))
+		exists, err = branchExists(db, branchID, "Branch_ID")
 		if err != nil {
 			http.Error(w, "unable to query database:", http.StatusInternalServerError)
 			ErrorLogger.Panicln("unable to query database:", err)
@@ -102,11 +100,6 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	//generate merchantID
-	newID := genID(result["name"].(string))
-
-	//open database
-
 	//save merchant to database
 	if err = insertNewMerchantDB(newID, result["name"].(string), db); err != nil {
 		ErrorLogger.Panicf("unable to insert new Merchant:", err)
@@ -115,27 +108,33 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 	//loop over slices
 	var temp []branch
 	for _, b := range branches.([]interface{}) {
-		code := b.(map[string]interface{})["code"]
-		name := b.(map[string]interface{})["name"]
+		code := b.(map[string]interface{})["code"].(string)
+		name := b.(map[string]interface{})["name"].(string)
+		branchID := newID + "-" + code
 
 		//save branch to database
-		if err = insertNewBranchDB(code.(string), newID, name.(string), db); err != nil {
+		if err = insertNewBranchDB(branchID, code, newID, name, db); err != nil {
 			ErrorLogger.Panicf("unable to insert new branch:", err)
 		}
 		//save branch into linked list
 		newBranch := branch{
-			Code:              code.(string),
-			Name:              name.(string),
+			BranchID:          branchID,
+			Name:              name,
+			BranchCode:        code,
 			MerchantID:        newID,
 			AmountOwed:        0,
 			UnclaimedVouchers: nil,
 		}
-		branchList.addEndNode(newBranch)
+		//branchList.addEndNode(newBranch)
 		temp = append(temp, newBranch)
 	}
 
 	//send post request to web portal
-	newJson := JsonReply{
+	reply := struct {
+		Ok   bool   `json:"ok"`
+		Msg  string `json:"msg"`
+		Data data   `json:"data"`
+	}{
 		Ok:  true,
 		Msg: "[MS-MERCHANTS]: created merchant data, successful",
 		Data: data{
@@ -147,13 +146,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newJson)
-
-	////_, err = http.Post("https://localhost:5001/api/v1/voucher", "application/json", bytes.NewReader(jsonValue))
-	////if err != nil {
-	////	http.Error(w, "unable to send POST request", http.StatusBadGateway)
-	////	ErrorLogger.Println("unable to send post request", err)
-	////}
+	json.NewEncoder(w).Encode(reply)
 
 }
 
@@ -286,7 +279,7 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 	for _, b := range branches.([]interface{}) {
 
 		//check for duplicates
-		exist, err := branchExists(db, b.(map[string]interface{})["code"].(string))
+		exist, err := branchExists(db, b.(map[string]interface{})["code"].(string), "Branch_Code")
 		if err != nil {
 			http.Error(w, "500 - unable to query database:", http.StatusInternalServerError)
 			ErrorLogger.Panicln("unable to query database:", err)
@@ -300,34 +293,37 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 	//if no duplicates create branches
 	var temp []branch
 	for _, b := range branches.([]interface{}) {
-		code := b.(map[string]interface{})["code"]
-		name := b.(map[string]interface{})["name"]
+		code := b.(map[string]interface{})["code"].(string)
+		name := b.(map[string]interface{})["name"].(string)
+		branchID := params["merchantID"] + "-" + code
 
 		//save branch to database
-		if err = insertNewBranchDB(code.(string), params["merchantID"], name.(string), db); err != nil {
+		if err = insertNewBranchDB(branchID, code, params["merchantID"], name, db); err != nil {
 			ErrorLogger.Panicf("unable to insert new branch:", err)
 		}
 		//save branch into linked list
 		newBranch := branch{
-			Code:              code.(string),
-			Name:              name.(string),
+			BranchID:          branchID,
+			Name:              name,
+			BranchCode:        code,
 			MerchantID:        params["merchantID"],
 			AmountOwed:        0,
 			UnclaimedVouchers: nil,
 		}
-		branchList.addEndNode(newBranch)
+		//branchList.addEndNode(newBranch)
 		temp = append(temp, newBranch)
 	}
 
 	//send post request to web portal
 	reply := struct {
-		OK   bool
-		Msg  string
-		Data []branch
+		OK   bool     `json:"ok"`
+		Msg  string   `json:"msg"`
+		Data []branch `json:"data"`
 	}{true, "[MS-MERCHANTS]: branches added to merchant data, successful", temp}
 
 	//send back results
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(reply)
 }
 
@@ -335,12 +331,12 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
 	merchantID := params["merchantID"]
-	branchCode := params["branchCode"]
+	branchID := params["branchID"]
 
 	var (
-		name          string
-		amountOwed    int
-		amountClamied int
+		name       string
+		amountOwed int
+		branchCode string
 	)
 
 	db := openDatabase()
@@ -361,7 +357,7 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//check if branch exists
-	err = db.QueryRow("SELECT Name, Amount_owed, Amount_claimed FROM merchant_branches WHERE Branch_Code = ?", branchCode).Scan(&name, &amountOwed, &amountClamied)
+	err = db.QueryRow("SELECT Name, Amount_owed, Branch_Code FROM merchant_branches WHERE Branch_ID = ?", branchID).Scan(&name, &amountOwed, &branchCode)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
@@ -374,49 +370,31 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 	}
 	//check if there is outstanding balance for the branch
 	//if balance is not 0 reject
-	if amountOwed < 0 {
+	if amountOwed > 0 {
 		http.Error(w, "403 - Request unsuccessful, there are unclaimed funds tied to branch", http.StatusForbidden)
 		ErrorLogger.Println("403 - Request unsuccessful, there are unclaimed funds tied to branch")
 		return
 	}
 	//if all checks pass delete branch from database
-	_, err = db.Exec("DELETE FROM merchant_branches WHERE Branch_Code = ?", branchCode)
-	//delete from linked list
-	node, exists := branchList.searchListForNode(branchCode)
-	if exists {
+	_, err = db.Exec("DELETE FROM merchant_branches WHERE Branch_ID = ?", branchID)
 
-		reply := struct {
-			Ok   bool
-			Msg  string
-			Data branch
-		}{true, "[MS-MERCHANTS]: branch removed from merchant data, successful", node.Data}
-
-		err := branchList.removeNode(node)
-		if err != nil {
-			http.Error(w, "500 - Error removing branch", http.StatusInternalServerError)
-			ErrorLogger.Println("unable to remove node from list:", err)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(reply)
-		return
-	}
-
-	tempBranch := branch{
-		Code:              branchCode,
+	deletedBranch := branch{
+		BranchID:          branchID,
 		Name:              name,
+		BranchCode:        branchCode,
 		MerchantID:        merchantID,
-		AmountOwed:        0,
+		AmountOwed:        amountOwed,
 		UnclaimedVouchers: nil,
 	}
 
 	reply := struct {
 		Ok   bool
 		Msg  string
-		data branch
-	}{true, "[MS-MERCHANTS]: branch removed from merchant data, successful", tempBranch}
+		Data branch
+	}{true, "[MS-MERCHANTS]: Branch removed from merchant data, successful", deletedBranch}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
 	json.NewEncoder(w).Encode(reply)
 }
 
