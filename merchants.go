@@ -146,6 +146,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newJson)
 
 	////_, err = http.Post("https://localhost:5001/api/v1/voucher", "application/json", bytes.NewReader(jsonValue))
@@ -429,8 +430,7 @@ func updateMerchantIsActive(w http.ResponseWriter, r *http.Request) {
 	)
 
 	db := openDatabase()
-	defer db.Close()
-	defer fmt.Println("Database closed")
+	defer closeDatabase(db)
 
 	err := db.QueryRow("SELECT Name, is_active FROM merchants WHERE Merchant_ID = ?", merchantID).Scan(&name, &isActive)
 	if err != nil {

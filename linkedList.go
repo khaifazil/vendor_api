@@ -62,7 +62,7 @@ func (d *doublyLinkedList) traverseForward() error {
 
 	currentNode := d.Head
 	for currentNode != nil {
-		fmt.Println(currentNode) //TODO: change to send query or marshal to json
+		fmt.Printf("%+v\n", currentNode.Data) //TODO: change to send query or marshal to json
 		currentNode = currentNode.Next
 	}
 	return nil
@@ -75,7 +75,7 @@ func (d *doublyLinkedList) traverseBackwards() error {
 
 	currentNode := d.Tail
 	for currentNode != nil {
-		fmt.Println(currentNode) //TODO: change to send query or marshal to json
+		fmt.Printf("%+v\n", currentNode.Data) //TODO: change to send query or marshal to json
 		currentNode = currentNode.Prev
 	}
 	return nil

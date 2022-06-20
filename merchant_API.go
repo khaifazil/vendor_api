@@ -5,9 +5,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"net/http"
+	"sync"
 )
 
-//var wg sync.WaitGroup
+var wg sync.WaitGroup
 
 func main() {
 
@@ -21,6 +22,21 @@ func main() {
 	//}
 
 	//fmt.Println(genID("Sheng Siong"))
+
+	branchList.addEndNode(branch{
+		Code:              "test",
+		Name:              "test1",
+		MerchantID:        "DSFSDF",
+		AmountOwed:        4,
+		UnclaimedVouchers: nil,
+	})
+	branchList.addEndNode(branch{
+		Code:              "test",
+		Name:              "test2",
+		MerchantID:        "DSFSDF",
+		AmountOwed:        4,
+		UnclaimedVouchers: nil,
+	})
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", home)
