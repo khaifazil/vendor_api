@@ -18,8 +18,3 @@ func errorResponse(w http.ResponseWriter, msg string, errCode int) {
 	w.Write([]byte(resp))
 	//json.NewEncoder(w).Encode(test)
 }
-
-func tester(w http.ResponseWriter, r *http.Request) {
-	errorResponse(w, "Error updating database. Fund redemption", 500)
-
-}

@@ -3,12 +3,14 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 )
 
-func (d *doublyLinkedList) gatherVouchers(w http.ResponseWriter) ([]Voucher, error) {
+func (d *doublyLinkedList) gatherVouchers() ([]Voucher, error) {
 	var allVouchers []Voucher
 	c := make(chan Voucher)
 
@@ -58,7 +60,7 @@ func (d *doublyLinkedList) gatherVouchers(w http.ResponseWriter) ([]Voucher, err
 }
 
 func (d *doublyLinkedList) totalUnclaimedVoucher(w http.ResponseWriter, r *http.Request) {
-	allVouchers, err := d.gatherVouchers(w)
+	allVouchers, err := d.gatherVouchers()
 	if err != nil {
 		errorResponse(w, "No vouchers to redeem. Redemption", http.StatusBadRequest)
 		ErrorLogger.Println("400 - No vouchers to redeem")
@@ -84,29 +86,29 @@ func (d *doublyLinkedList) totalUnclaimedVoucher(w http.ResponseWriter, r *http.
 
 //handler to send over unclaimed vouchers for processing
 func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) {
-	allVouchers, err := d.gatherVouchers(w)
+	allVouchers, err := d.gatherVouchers()
 	if err != nil {
 		errorResponse(w, "No vouchers to redeem. Redemption", http.StatusBadRequest)
 		ErrorLogger.Println("400 - No vouchers to redeem")
 		return
 	}
-
 	//process url queries
 	values := r.URL.Query()
-	pageIndex, err := strconv.Atoi(values["page_index"][0])
+
+	pageIndex, err := strconv.Atoi(values.Get("page_index"))
 	if err != nil {
-		errorResponse(w, "Processing url query", http.StatusBadRequest)
-		ErrorLogger.Println("unable to process url query")
+		errorResponse(w, "URL query not found. Processing URL query", http.StatusBadRequest)
+		ErrorLogger.Println("400 - URL query not found")
 		return
 	}
 
-	recordsPerPage, err := strconv.Atoi(values["records_per_page"][0])
+	recordsPerPage, err := strconv.Atoi(values.Get("records_per_page"))
 	if err != nil {
-		errorResponse(w, "Processing url query", http.StatusBadRequest)
-		ErrorLogger.Println("unable to process url query")
+		errorResponse(w, "URL query not found. Processing URL query", http.StatusBadRequest)
+		ErrorLogger.Println("400 - URL query not found")
 		return
 	}
-	//totalPages := len(allVouchers) / recordsPerPage
+
 	var sliceToSend []Voucher
 
 	if (pageIndex * recordsPerPage) > len(allVouchers) {
@@ -129,45 +131,68 @@ func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(reply)
 
 	//fmt.Printf("%+v", sliceToSend)
-
 }
 
-//db := openDatabase()
-//defer closeDatabase(db)
-//
-//for _, branch := range branchSlice {
-//	if branch.UnclaimedVouchers == nil {
-//		continue
-//	}
-//	for _, voucher := range branch.UnclaimedVouchers {
-//		_, err := db.Exec("UPDATE consumed_vouchers SET Is_Consumed = true WHERE VID = ?", voucher.VID)
-//		if err != nil {
-//			errorResponse(w, "Error updating database. Fund redemption", 500)
-//			ErrorLogger.Println("500 - Error updating database.")
-//			return
-//		}
-//	}
-//	//update merchant_branches with correct amounts
-//	_, err := db.Exec("UPDATE merchant_branches SET Amount_owed = 0, Amount_claimed = Amount_claimed + ? WHERE Branch_ID = ?", branch.AmountOwed, branch.BranchID)
-//	if err != nil {
-//		errorResponse(w, "Error updating database. Fund redemption", 500)
-//		ErrorLogger.Println("500 - Error updating database.")
-//		return
-//	}
-//}
-//
-////reset linked list
-//err := branchList.deleteAllNodes()
-//if err != nil {
-//	ErrorLogger.Println(err)
-//	return
-//}
-//
-//reply := struct {
-//	Ok   bool     `json:"ok"`
-//	Msg  string   `json:"msg"`
-//	Data []branch `json:"data"`
-//}{true, "[MS-MERCHANTS]: Voucher claims, successful", branchSlice}
-//w.Header().Set("Content-Type", "application/json")
-//w.WriteHeader(http.StatusAccepted)
-//json.NewEncoder(w).Encode(reply)
+func claimVoucher(w http.ResponseWriter, r *http.Request) { //TODO: add in concurrency
+
+	resp, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, "unable to read request body. Voucher claims", http.StatusUnprocessableEntity)
+		ErrorLogger.Println("unable to read request body:", err)
+		return
+	}
+
+	var results []*Voucher
+	//decodes request body into results
+	json.NewDecoder(strings.NewReader(string(resp))).Decode(&results)
+
+	db := openDatabase()
+	defer closeDatabase(db)
+
+	for _, voucher := range results {
+		_, err := db.Exec("UPDATE consumed_vouchers SET Is_Claimed = true WHERE VID = ?", voucher.VID)
+		if err != nil {
+			errorResponse(w, "Error updating database. Fund redemption", 500)
+			ErrorLogger.Println("500 - Error updating database.")
+			return
+		}
+		//update merchant_branches with correct amounts
+		_, err = db.Exec("UPDATE merchant_branches SET Amount_owed = Amount_owed - ?, Amount_claimed = Amount_claimed + ? WHERE Branch_ID = ?", voucher.Amount, voucher.Amount, voucher.BranchID)
+		if err != nil {
+			errorResponse(w, "Error updating database. Fund redemption", 500)
+			ErrorLogger.Println("500 - Error updating database.")
+			return
+		}
+		voucher.IsClaimed = true
+		//fmt.Println(voucher)
+	}
+
+	reply := struct {
+		Ok   bool       `json:"ok"`
+		Msg  string     `json:"msg"`
+		Data []*Voucher `json:"data"`
+	}{true, "[MS-MERCHANTS]: Voucher claims, successful", results}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(reply)
+}
+
+func reloadLocalCache(w http.ResponseWriter, r *http.Request) {
+	//reset linked list
+	err := branchList.deleteAllNodes()
+	if err != nil {
+		errorResponse(w, "Error deleting local cache. Request", 500)
+		ErrorLogger.Println(err)
+		return
+	}
+
+	initFromDatabase()
+	reply := struct {
+		Ok   bool     `json:"ok"`
+		Msg  string   `json:"msg"`
+		Data struct{} `json:"data"`
+	}{true, "[MS-MERCHANTS]: Reload local cache, successful", struct{}{}}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(reply)
+}

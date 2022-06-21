@@ -81,7 +81,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		ErrorLogger.Println("Unable to read request body:", err)
-		http.Error(w, "Unable to read request body", http.StatusUnprocessableEntity) //TODO: change error
+		errorResponse(w, "Unable to read request body. Request", http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -89,7 +89,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		voucher, err := readVoucher(resp)
 		if err != nil {
 			ErrorLogger.Println("unable to marshal JSON: ", err)
-			http.Error(w, "unable to marshal JSON", http.StatusUnprocessableEntity) //TODO: change error
+			errorResponse(w, "Unable to marshal JSON. Request", http.StatusUnprocessableEntity)
 			return
 		}
 
@@ -99,13 +99,13 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		var isActive bool
 		err = db.QueryRow("SELECT is_active FROM merchants AS m JOIN merchant_branches AS mb ON m.Merchant_ID = mb.MerchantID WHERE Branch_ID = ?;", voucher.BranchID).Scan(&isActive)
 		if err != nil {
-			http.Error(w, "500 - unable to query database", http.StatusInternalServerError) //TODO: change error
+			errorResponse(w, "500 - unable to query database. Request", http.StatusInternalServerError)
 			ErrorLogger.Println("500 - unable to query database", err)
 			return
 		}
 
 		if !isActive {
-			http.Error(w, "403 - Merchant is not active", http.StatusForbidden) //TODO: change error
+			errorResponse(w, "403 - Merchant is not active. Request", http.StatusForbidden)
 			ErrorLogger.Println("403 - Merchant is not active")
 			return
 		}
@@ -115,8 +115,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 
 			err := branchList.storeConsumed(voucher)
 			if err != nil {
-				w.WriteHeader(http.StatusUnprocessableEntity) //TODO: change error
-				w.Write([]byte(err.Error()))
+				errorResponse(w, err.Error(), 422)
 				ErrorLogger.Println(err)
 				return
 			}
@@ -129,6 +128,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 			db.Query("UPDATE merchant_branches SET Amount_owed = Amount_owed + ? WHERE Branch_ID = ?", voucher.Amount, voucher.BranchID)
 
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
 			json.NewEncoder(w).Encode(struct {
 				Ok   bool
 				Msg  string
