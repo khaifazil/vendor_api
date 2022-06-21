@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 func init() {
 	initFromDatabase()
 	//fmt.Printf("%+v", branchList)
@@ -25,8 +27,8 @@ func initFromDatabase() {
 		isClaimed   bool
 		isValidated bool
 	)
-
-	rows, err := db.Query("SELECT Branch_ID, Name, Branch_Code, MerchantID, Amount_owed FROM merchant_branches WHERE Amount_owed > 0")
+	//get merchant branches with outstanding amount owed
+	rows, err := db.Query("SELECT Branch_ID, Name, Branch_Code, MerchantID, Amount_owed FROM merchant_branches WHERE Amount_owed > 0 ORDER BY Branch_ID")
 	if err != nil {
 		ErrorLogger.Fatal("unable to initialize data from database:", err)
 	}
@@ -70,6 +72,7 @@ func initFromDatabase() {
 		}
 
 		branchList.addEndNode(branch)
+		fmt.Println("Local cache initialized")
 	}
 
 }

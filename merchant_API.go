@@ -74,9 +74,10 @@ func main() {
 	router.HandleFunc("/api/v1/merchants/{merchantID}/branches", addBranches).Methods("POST")
 	router.HandleFunc("/api/v1/merchants/{merchantID}", getMerchant).Methods("GET")
 	router.HandleFunc("/api/v1/merchants/", getAllMerchants).Methods("GET")
-	router.HandleFunc("/api/v1/merchants/{merchantID}/{branchID}", removeBranch).Methods("GET")
+	router.HandleFunc("/api/v1/merchants/{merchantID}/{branchID}/remove", removeBranch).Methods("GET")
 	router.HandleFunc("/api/v1/merchants/{merchantID}/toggle_active", updateMerchantIsActive).Methods("PUT")
-	router.HandleFunc("/api/v1/merchants/redeem", branchList.claimVoucher).Methods("PUT")
+	router.HandleFunc("/api/v1/merchants/get_vouchers/total", branchList.totalUnclaimedVoucher).Methods("GET")
+	router.HandleFunc("/api/v1/merchants/get_vouchers/", branchList.sendVouchers).Methods("GET")
 
 	fmt.Println("Listening on port 9091")
 	err := http.ListenAndServeTLS("localhost:9091", "./SSL/localhost.cert.pem", "./SSL/localhost.key.pem", router)
