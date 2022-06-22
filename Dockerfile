@@ -3,11 +3,12 @@ WORKDIR /app
 COPY . .
 RUN go build -o main
 
-FROM alpine:3.16
-WORKDIR /app
-COPY --from=builder /app/main .
-COPY app.env .
-COPY wait-for.sh .
+#FROM alpine:3.16
+#WORKDIR /app
+#ADD /logs .
+#COPY --from=builder /app/main .
+#COPY app.env .
+#COPY wait-for.sh .
 
 
 EXPOSE 9091

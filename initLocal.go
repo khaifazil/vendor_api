@@ -2,11 +2,6 @@ package main
 
 import "fmt"
 
-func init() {
-
-	//fmt.Printf("%+v", branchList)
-}
-
 func initFromDatabase() {
 	db := openDatabase()
 	defer closeDatabase(db)

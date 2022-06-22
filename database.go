@@ -56,7 +56,7 @@ func insertNewMerchantDB(ID string, name string, db *sql.DB) error {
 
 func insertNewBranchDB(branchID, code, merchantID, name string, db *sql.DB) error {
 	//insert used voucher into table
-	_, err := db.Exec("INSERT INTO merchant_Branches (Branch_ID, Branch_Code, Name, MerchantID) VALUES (?, ?, ?, ?)", branchID, code, name, merchantID)
+	_, err := db.Exec("INSERT INTO merchant_branches (Branch_ID, Branch_Code, Name, MerchantID) VALUES (?, ?, ?, ?)", branchID, code, name, merchantID)
 	if err != nil {
 		return err
 	}

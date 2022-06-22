@@ -1,6 +1,13 @@
-CREATE DATABASE merchantapi_db;
+DROP DATABASE IF EXISTS merchant_api_db;
+
+CREATE DATABASE merchant_api_db;
 
 USE merchant_api_db;
+
+DROP TABLE IF EXISTS merchants;
+DROP TABLE IF EXISTS merchant_branches;
+DROP TABLE IF EXISTS consumed_vouchers;
+DROP TABLE IF EXISTS api_key;
 
 create table merchants
 (

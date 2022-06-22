@@ -2,6 +2,6 @@ FROM mysql:latest
 
 ENV MYSQL_ROOT_PASSWORD=password
 
-COPY ./database_merchantapi.sql /docker-entrypoint-initdb.d/
+COPY ./database_merchantapi.sql /tmp
 
-CMD ["mysqld"]
+CMD ["mysqld", "--init-file=/tmp/database_merchantapi.sql" ]
