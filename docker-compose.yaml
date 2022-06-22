@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  mysql:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    restart:
+      always
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DB=merchantapi_db
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9091:9091"
+    restart:
+      always
+    depends_on:
+      - mysql
+    environment:
+      - DB_IP=mysql
+      - DB_PW=password
+    entrypoint: ["/app/wait-for.sh.sh","mysql:3306","--"]
+    command: ["/app/main"]

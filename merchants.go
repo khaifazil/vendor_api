@@ -50,7 +50,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Send in merchant details in JSON format", http.StatusUnprocessableEntity)
+		errorResponse(w, "Send in merchant details in JSON format", http.StatusUnprocessableEntity)
 		ErrorLogger.Println("unable to read request body:", err)
 		return
 	}
@@ -58,8 +58,8 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
-		http.Error(w, "Send in merchant details in JSON format", http.StatusUnprocessableEntity)
-		ErrorLogger.Println("unable to unmarshal JSON:", err)
+		errorResponse(w, "Send in merchant details in JSON format", http.StatusUnprocessableEntity)
+		ErrorLogger.Println("unable to read request body:", err)
 		return
 	}
 
@@ -70,12 +70,12 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 	//check for duplicates
 	exists, err := merchantExistsName(db, result["name"].(string))
 	if err != nil {
-		http.Error(w, "unable to query database:", http.StatusInternalServerError)
+		errorResponse(w, "unable to query database:", http.StatusInternalServerError)
 		ErrorLogger.Panicln("unable to query database:", err)
 	}
 
 	if exists {
-		http.Error(w, "409 - Duplicate Merchant Name", http.StatusConflict)
+		errorResponse(w, "409 - Duplicate Merchant Name", http.StatusConflict)
 		ErrorLogger.Println("409 - Duplicate Merchant Name")
 		return
 	}
