@@ -1,6 +1,6 @@
 CREATE DATABASE merchantapi_db;
 
-USE merchantapi_db;
+USE merchant_api_db;
 
 create table merchants
 (

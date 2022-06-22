@@ -4,12 +4,23 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"os"
 )
 
 func openDatabase() *sql.DB {
-	//Use mysql as driverName and a valid DSN as dataSourceName:
-	db, err := sql.Open("mysql", "user:password@tcp(localhost:3306)/merchant_api_db")
 
+	var (
+		UserName = os.Getenv("DB_USER")
+		Password = os.Getenv("DB_PW")
+		DBIP     = os.Getenv("DB_IP")
+		DBPort   = os.Getenv("DB_PORT")
+		DBName   = os.Getenv("DB_NAME")
+	)
+
+	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", UserName, Password, DBIP, DBPort, DBName)
+
+	//Use mysql as driverName and a valid DSN as dataSourceName:
+	db, err := sql.Open("mysql", dsn)
 	//handle error
 	if err != nil {
 		ErrorLogger.Fatalf("Unable to open database: %v", err)
