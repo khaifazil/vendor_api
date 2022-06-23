@@ -61,7 +61,7 @@ func getNewApiKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateAPIKey(r *http.Request) bool {
-	apikey := r.Header.Get("key")
+	apikey := r.Header.Get("API-Key")
 
 	db := openDatabase()
 	defer closeDatabase(db)
