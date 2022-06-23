@@ -137,9 +137,9 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(200)
 			json.NewEncoder(w).Encode(struct {
-				Ok   bool
-				Msg  string
-				Data Voucher
+				Ok   bool    `json:"ok"`
+				Msg  string  `json:"msg"`
+				Data Voucher `json:"data"`
 			}{Ok: true, Msg: "[MS-MERCHANTS]: consume voucher, successful", Data: voucher})
 		}
 	}

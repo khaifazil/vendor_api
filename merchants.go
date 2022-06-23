@@ -12,9 +12,9 @@ import (
 )
 
 type MerchantData struct {
-	MerchantID   string
-	MerchantName string
-	IsActive     bool
+	MerchantID   string `json:"merchantID"`
+	MerchantName string `json:"merchantName"`
+	IsActive     bool   `json:"isActive"`
 }
 
 type data struct {
@@ -24,12 +24,12 @@ type data struct {
 }
 
 type branch struct {
-	BranchID          string
-	Name              string
-	BranchCode        string
-	MerchantID        string
-	AmountOwed        int
-	UnclaimedVouchers []Voucher
+	BranchID          string    `json:"branchID"`
+	Name              string    `json:"name"`
+	BranchCode        string    `json:"branchCode"`
+	MerchantID        string    `json:"merchantID"`
+	AmountOwed        int       `json:"amountOwed"`
+	UnclaimedVouchers []Voucher `json:"unclaimedVouchers"`
 }
 
 var branchList doublyLinkedList
@@ -201,9 +201,9 @@ func getMerchant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reply := struct {
-		OK   bool
-		Msg  string
-		Data MerchantData
+		OK   bool         `json:"ok"`
+		Msg  string       `json:"msg"`
+		Data MerchantData `json:"data"`
 	}{true, "[MS-MERCHANTS]: retrieved merchant data, successful", result}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -258,9 +258,9 @@ func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(struct {
-		Ok   bool
-		Msg  string
-		Data []MerchantData
+		Ok   bool           `json:"ok"`
+		Msg  string         `json:"msg"`
+		Data []MerchantData `json:"data"`
 	}{true, "[MS-MERCHANTS]: retrieval of list of merchants, successful", merchants})
 }
 
@@ -429,9 +429,9 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reply := struct {
-		Ok   bool
-		Msg  string
-		Data branch
+		Ok   bool   `json:"ok"`
+		Msg  string `json:"msg"`
+		Data branch `json:"data"`
 	}{true, "[MS-MERCHANTS]: Branch removed from merchant data, successful", deletedBranch}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -498,9 +498,9 @@ func updateMerchantIsActive(w http.ResponseWriter, r *http.Request) {
 		IsActive:     isActive,
 	}
 	reply := struct {
-		Ok   bool
-		Msg  string
-		Data MerchantData
+		Ok   bool         `json:"ok"`
+		Msg  string       `json:"msg"`
+		Data MerchantData `json:"data"`
 	}{true, msg, m}
 
 	w.Header().Set("Content-Type", "application/json")
