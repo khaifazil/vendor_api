@@ -63,14 +63,14 @@ func (d *doublyLinkedList) totalUnclaimedVoucher(w http.ResponseWriter, r *http.
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
 
 	allVouchers, err := d.gatherVouchers()
 	if err != nil {
-		errorResponse(w, "No vouchers to redeem. Redemption", http.StatusBadRequest)
+		errorResponse(w, "No vouchers to redeem", http.StatusBadRequest)
 		ErrorLogger.Println("400 - No vouchers to redeem")
 		return
 	}
@@ -97,14 +97,14 @@ func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) 
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
 
 	allVouchers, err := d.gatherVouchers()
 	if err != nil {
-		errorResponse(w, "No vouchers to redeem. Redemption", http.StatusBadRequest)
+		errorResponse(w, "No vouchers to redeem", http.StatusBadRequest)
 		ErrorLogger.Println("400 - No vouchers to redeem")
 		return
 	}
@@ -113,14 +113,14 @@ func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) 
 
 	pageIndex, err := strconv.Atoi(values.Get("page_index"))
 	if err != nil {
-		errorResponse(w, "URL query not found. Processing URL query", http.StatusBadRequest)
+		errorResponse(w, "URL query not found", http.StatusBadRequest)
 		ErrorLogger.Println("400 - URL query not found")
 		return
 	}
 
 	recordsPerPage, err := strconv.Atoi(values.Get("records_per_page"))
 	if err != nil {
-		errorResponse(w, "URL query not found. Processing URL query", http.StatusBadRequest)
+		errorResponse(w, "URL query not found", http.StatusBadRequest)
 		ErrorLogger.Println("400 - URL query not found")
 		return
 	}
@@ -128,7 +128,7 @@ func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) 
 	var sliceToSend []Voucher
 
 	if (pageIndex * recordsPerPage) > len(allVouchers) {
-		errorResponse(w, "Page_index is out of bounds total pages, get unclaimed vouchers", http.StatusBadRequest)
+		errorResponse(w, "Page_index is out of bounds total pages", http.StatusBadRequest)
 		ErrorLogger.Println("400 - Page_index is out of bounds total pages")
 		return
 	} else if (pageIndex*recordsPerPage)+recordsPerPage > len(allVouchers) {
@@ -153,14 +153,14 @@ func claimVoucher(w http.ResponseWriter, r *http.Request) { //TODO: add in concu
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
 
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		errorResponse(w, "unable to read request body. Voucher claims", http.StatusUnprocessableEntity)
+		errorResponse(w, "unable to read request body", http.StatusUnprocessableEntity)
 		ErrorLogger.Println("unable to read request body:", err)
 		return
 	}
@@ -175,14 +175,14 @@ func claimVoucher(w http.ResponseWriter, r *http.Request) { //TODO: add in concu
 	for _, voucher := range results {
 		_, err := db.Exec("UPDATE consumed_vouchers SET Is_Claimed = true WHERE VID = ?", voucher.VID)
 		if err != nil {
-			errorResponse(w, "Error updating database. Fund redemption", 500)
+			errorResponse(w, "Error updating database", 500)
 			ErrorLogger.Println("500 - Error updating database.")
 			return
 		}
 		//update merchant_branches with correct amounts
 		_, err = db.Exec("UPDATE merchant_branches SET Amount_owed = Amount_owed - ?, Amount_claimed = Amount_claimed + ? WHERE Branch_ID = ?", voucher.Amount, voucher.Amount, voucher.BranchID)
 		if err != nil {
-			errorResponse(w, "Error updating database. Fund redemption", 500)
+			errorResponse(w, "Error updating database", 500)
 			ErrorLogger.Println("500 - Error updating database.")
 			return
 		}
@@ -204,7 +204,7 @@ func reloadLocalCache(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
@@ -212,7 +212,7 @@ func reloadLocalCache(w http.ResponseWriter, r *http.Request) {
 	//reset linked list
 	err := branchList.deleteAllNodes()
 	if err != nil {
-		errorResponse(w, "Error deleting local cache. Request", 500)
+		errorResponse(w, "Error deleting local cache", 500)
 		ErrorLogger.Println(err)
 		return
 	}

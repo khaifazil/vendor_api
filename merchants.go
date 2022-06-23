@@ -50,7 +50,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
@@ -77,7 +77,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 	//check for duplicates
 	exists, err := merchantExistsName(db, result["name"].(string))
 	if err != nil {
-		errorResponse(w, "unable to query database:", http.StatusInternalServerError)
+		errorResponse(w, "unable to query database", http.StatusInternalServerError)
 		ErrorLogger.Panicln("unable to query database:", err)
 	}
 
@@ -97,11 +97,11 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 		//check for duplicates
 		exists, err = branchExists(db, branchID, "Branch_ID")
 		if err != nil {
-			http.Error(w, "unable to query database:", http.StatusInternalServerError)
+			errorResponse(w, "unable to query database:", http.StatusInternalServerError)
 			ErrorLogger.Panicln("unable to query database:", err)
 		}
 		if exists {
-			http.Error(w, "409 - Duplicate Branch Code", http.StatusConflict)
+			errorResponse(w, "409 - Duplicate Branch Code", http.StatusConflict)
 			ErrorLogger.Println("409 - Duplicate Branch code")
 			return
 		}
@@ -109,6 +109,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 	//save merchant to database
 	if err = insertNewMerchantDB(newID, result["name"].(string), db); err != nil {
+		errorResponse(w, "unable to query database", http.StatusInternalServerError)
 		ErrorLogger.Panicf("unable to insert new Merchant:", err)
 	}
 
@@ -121,6 +122,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 		//save branch to database
 		if err = insertNewBranchDB(branchID, code, newID, name, db); err != nil {
+			errorResponse(w, "unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Panicf("unable to insert new branch:", err)
 		}
 		//save branch into linked list
@@ -161,7 +163,7 @@ func getMerchant(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
@@ -183,11 +185,11 @@ func getMerchant(w http.ResponseWriter, r *http.Request) {
 	err := db.QueryRow("SELECT * FROM merchants WHERE Merchant_ID = ?", ID).Scan(&merchantID, &name, &isActive)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			errorResponse(w, "unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Println("500 - unable to query database", err)
 			return
 		}
-		http.Error(w, "404 - Merchant ID not found in database", http.StatusNotFound)
+		errorResponse(w, "404 - Merchant ID not found in database", http.StatusNotFound)
 		ErrorLogger.Println("404 - Merchant ID not found in database", err)
 		return
 	}
@@ -212,7 +214,7 @@ func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
@@ -231,7 +233,7 @@ func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("SELECT * FROM merchants")
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "there are no merchants in database", http.StatusBadRequest)
+			errorResponse(w, "there are no merchants in database", http.StatusBadRequest)
 			ErrorLogger.Println("there are no merchants in database", err)
 			return
 		}
@@ -240,7 +242,7 @@ func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		if err = rows.Scan(&merchant_ID, &name, &isActive); err != nil {
-			http.Error(w, "unable to scan rows", http.StatusBadRequest)
+			errorResponse(w, "unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Println("unable to scan rows", err)
 			return
 		}
@@ -266,7 +268,7 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
@@ -275,13 +277,13 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 	var result map[string]interface{}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "422 - Unable to read request body", http.StatusUnprocessableEntity)
+		errorResponse(w, "422 - Unable to read request body", http.StatusUnprocessableEntity)
 		ErrorLogger.Println("Unable to read request body:", err)
 		return
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		http.Error(w, "422 - Send in branch details in JSON format", http.StatusUnprocessableEntity)
+		errorResponse(w, "422 - Send in branch details in JSON format", http.StatusUnprocessableEntity)
 		ErrorLogger.Println("unable to unmarshal JSON:", err)
 		return
 	}
@@ -293,14 +295,14 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 	//check if merchant exist in database
 	exist, err := merchantExistsID(db, params["merchantID"])
 	if err != nil {
-		http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+		errorResponse(w, "500 - unable to query database", http.StatusInternalServerError)
 		ErrorLogger.Println("unable to query database", err)
 		return
 	}
 
 	//if does not exist return error
 	if !exist {
-		http.Error(w, "404 - Merchant ID does not exist in database", http.StatusNotFound)
+		errorResponse(w, "404 - Merchant ID does not exist in database", http.StatusNotFound)
 		ErrorLogger.Println("Merchant ID does not exist in database")
 		return
 	}
@@ -311,11 +313,11 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 		//check for duplicates
 		exist, err := branchExists(db, b.(map[string]interface{})["code"].(string), "Branch_Code")
 		if err != nil {
-			http.Error(w, "500 - unable to query database:", http.StatusInternalServerError)
+			errorResponse(w, "500 - unable to query database:", http.StatusInternalServerError)
 			ErrorLogger.Panicln("unable to query database:", err)
 		}
 		if exist {
-			http.Error(w, "409 - Duplicate Branch Code", http.StatusConflict)
+			errorResponse(w, "409 - Duplicate Branch Code", http.StatusConflict)
 			ErrorLogger.Println("409 - Duplicate Branch code")
 			return
 		}
@@ -329,6 +331,7 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 
 		//save branch to database
 		if err = insertNewBranchDB(branchID, code, params["merchantID"], name, db); err != nil {
+			errorResponse(w, "unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Panicf("unable to insert new branch:", err)
 		}
 		//save branch into linked list
@@ -361,7 +364,7 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
@@ -384,13 +387,13 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 	//check if merchantID exists
 	exists, err := merchantExistsID(db, merchantID)
 	if err != nil {
-		http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+		errorResponse(w, "500 - unable to query database", http.StatusInternalServerError)
 		ErrorLogger.Println("unable to query database", err)
 		return
 	}
 
 	if !exists {
-		http.Error(w, "404 - Merchant ID not found in database", http.StatusNotFound)
+		errorResponse(w, "404 - Merchant ID not found in database", http.StatusNotFound)
 		ErrorLogger.Println("404 - Merchant ID not found in database")
 		return
 	}
@@ -398,18 +401,18 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow("SELECT Name, Amount_owed, Branch_Code FROM merchant_branches WHERE Branch_ID = ?", branchID).Scan(&name, &amountOwed, &branchCode)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			errorResponse(w, "500 - unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Println("500 - unable to query database", err)
 			return
 		}
-		http.Error(w, "404 - Branch not found in database", http.StatusNotFound)
+		errorResponse(w, "404 - Branch not found in database", http.StatusNotFound)
 		ErrorLogger.Println("404 - Branch not found in database", err)
 		return
 	}
 	//check if there is outstanding balance for the branch
 	//if balance is not 0 reject
 	if amountOwed > 0 {
-		http.Error(w, "403 - Request unsuccessful, there are unclaimed funds tied to branch", http.StatusForbidden)
+		errorResponse(w, "403 - Request unsuccessful, there are unclaimed funds tied to branch", http.StatusForbidden)
 		ErrorLogger.Println("403 - Request unsuccessful, there are unclaimed funds tied to branch")
 		return
 	}
@@ -440,7 +443,7 @@ func updateMerchantIsActive(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
@@ -459,11 +462,11 @@ func updateMerchantIsActive(w http.ResponseWriter, r *http.Request) {
 	err := db.QueryRow("SELECT Name, is_active FROM merchants WHERE Merchant_ID = ?", merchantID).Scan(&name, &isActive)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			errorResponse(w, "500 - unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Println("500 - unable to query database", err)
 			return
 		}
-		http.Error(w, "404 - Merchant ID not found in database", http.StatusNotFound)
+		errorResponse(w, "404 - Merchant ID not found in database", http.StatusNotFound)
 		ErrorLogger.Println("404 - Merchant ID not found in database")
 		return
 	}
@@ -472,7 +475,7 @@ func updateMerchantIsActive(w http.ResponseWriter, r *http.Request) {
 	if isActive {
 		_, err = db.Exec("UPDATE merchants SET is_active = FALSE WHERE Merchant_ID = ?", merchantID)
 		if err != nil {
-			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			errorResponse(w, "500 - unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Println("500 - unable to query database", err)
 			return
 		}
@@ -481,7 +484,7 @@ func updateMerchantIsActive(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_, err = db.Exec("UPDATE merchants SET is_active = TRUE WHERE Merchant_ID = ?", merchantID)
 		if err != nil {
-			http.Error(w, "500 - unable to query database", http.StatusInternalServerError)
+			errorResponse(w, "500 - unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Println("500 - unable to query database", err)
 			return
 		}

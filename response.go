@@ -6,7 +6,7 @@ import (
 )
 
 func errorResponse(w http.ResponseWriter, msg string, errCode int) {
-	newMsg := "[MS-MERCHANTS]: " + msg + ", unsuccessful"
+	newMsg := "[MS-MERCHANTS]: " + msg + ". Request, unsuccessful."
 	//test := struct {
 	//	Ok   bool     `json:"ok"`
 	//	Msg  string   `json:"msg"`

@@ -26,16 +26,16 @@ func genApiKey() (string, error) {
 
 func getNewApiKey(w http.ResponseWriter, r *http.Request) {
 	if apiKey, err := genApiKey(); err != nil {
-		errorResponse(w, "unable to generate apikey. Request", 500)
+		errorResponse(w, "unable to generate apikey", 500)
 		ErrorLogger.Println("unable to generate apikey", err)
 		return
 	} else {
 		db := openDatabase()
 		defer closeDatabase(db)
 
-		_, err := db.Exec("INSERT INTO api_key(API_Key) VALUE (?)", apiKey)
+		_, err := db.Exec("INSERT INTO api_key(API_Keys) VALUE (?)", apiKey)
 		if err != nil {
-			errorResponse(w, "unable query database. Request", 500)
+			errorResponse(w, "unable query database", 500)
 			ErrorLogger.Println("unable query database.", err)
 			return
 		}
@@ -66,7 +66,7 @@ func validateAPIKey(r *http.Request) bool {
 	db := openDatabase()
 	defer closeDatabase(db)
 
-	err := db.QueryRow("SELECT API_Key FROM api_key WHERE API_Key = ?", apikey).Scan(&apikey)
+	err := db.QueryRow("SELECT API_Keys FROM api_key WHERE API_Keys = ?", apikey).Scan(&apikey)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return false

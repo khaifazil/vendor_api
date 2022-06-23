@@ -80,7 +80,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
-		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		errorResponse(w, "API key is unauthorized", http.StatusUnauthorized)
 		ErrorLogger.Println("API key is unauthorized")
 		return
 	}
@@ -88,7 +88,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		ErrorLogger.Println("Unable to read request body:", err)
-		errorResponse(w, "Unable to read request body. Request", http.StatusUnprocessableEntity)
+		errorResponse(w, "Unable to read request body", http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -96,7 +96,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		voucher, err := readVoucher(resp)
 		if err != nil {
 			ErrorLogger.Println("unable to marshal JSON: ", err)
-			errorResponse(w, "Unable to marshal JSON. Request", http.StatusUnprocessableEntity)
+			errorResponse(w, "Unable to marshal JSON", http.StatusUnprocessableEntity)
 			return
 		}
 
@@ -106,13 +106,13 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		var isActive bool
 		err = db.QueryRow("SELECT is_active FROM merchants AS m JOIN merchant_branches AS mb ON m.Merchant_ID = mb.MerchantID WHERE Branch_ID = ?;", voucher.BranchID).Scan(&isActive)
 		if err != nil {
-			errorResponse(w, "500 - unable to query database. Request", http.StatusInternalServerError)
+			errorResponse(w, "500 - unable to query database", http.StatusInternalServerError)
 			ErrorLogger.Println("500 - unable to query database", err)
 			return
 		}
 
 		if !isActive {
-			errorResponse(w, "403 - Merchant is not active. Request", http.StatusForbidden)
+			errorResponse(w, "403 - Merchant is not active", http.StatusForbidden)
 			ErrorLogger.Println("403 - Merchant is not active")
 			return
 		}

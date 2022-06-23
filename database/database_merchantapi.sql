@@ -50,7 +50,9 @@ create table api_key
 (
     ID  int         not null
         primary key auto_increment,
-    API_Key varchar(90) not null,
+    API_Keys varchar(100) not null,
     constraint API_UNIQUE
-        unique (API_Key)
+        unique (API_Keys)
 );
+
+INSERT INTO api_key(API_Keys) VALUE ("b443d88be15b13d50c24a39ae1d3f756be9bcc60d88d55e7e70246c74eb94a6a");
