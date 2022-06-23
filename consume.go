@@ -78,6 +78,13 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		ErrorLogger.Println("Unable to read request body:", err)

@@ -48,6 +48,13 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		errorResponse(w, "Send in merchant details in JSON format", http.StatusUnprocessableEntity)
@@ -152,6 +159,13 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 func getMerchant(w http.ResponseWriter, r *http.Request) {
 
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	var (
 		merchantID string
 		name       string
@@ -195,6 +209,14 @@ func getMerchant(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAllMerchants(w http.ResponseWriter, r *http.Request) {
+
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	var (
 		merchant_ID string
 		name        string
@@ -241,6 +263,14 @@ func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 }
 
 func addBranches(w http.ResponseWriter, r *http.Request) {
+
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	params := mux.Vars(r)
 	var result map[string]interface{}
 	body, err := ioutil.ReadAll(r.Body)
@@ -328,6 +358,14 @@ func addBranches(w http.ResponseWriter, r *http.Request) {
 }
 
 func removeBranch(w http.ResponseWriter, r *http.Request) {
+
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	params := mux.Vars(r)
 
 	merchantID := params["merchantID"]
@@ -399,6 +437,14 @@ func removeBranch(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateMerchantIsActive(w http.ResponseWriter, r *http.Request) {
+
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	params := mux.Vars(r)
 	merchantID := params["merchantID"]
 

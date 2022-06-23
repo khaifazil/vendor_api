@@ -60,6 +60,14 @@ func (d *doublyLinkedList) gatherVouchers() ([]Voucher, error) {
 }
 
 func (d *doublyLinkedList) totalUnclaimedVoucher(w http.ResponseWriter, r *http.Request) {
+
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	allVouchers, err := d.gatherVouchers()
 	if err != nil {
 		errorResponse(w, "No vouchers to redeem. Redemption", http.StatusBadRequest)
@@ -86,6 +94,14 @@ func (d *doublyLinkedList) totalUnclaimedVoucher(w http.ResponseWriter, r *http.
 
 //handler to send over unclaimed vouchers for processing
 func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) {
+
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	allVouchers, err := d.gatherVouchers()
 	if err != nil {
 		errorResponse(w, "No vouchers to redeem. Redemption", http.StatusBadRequest)
@@ -135,6 +151,13 @@ func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) 
 
 func claimVoucher(w http.ResponseWriter, r *http.Request) { //TODO: add in concurrency
 
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	resp, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		errorResponse(w, "unable to read request body. Voucher claims", http.StatusUnprocessableEntity)
@@ -178,6 +201,14 @@ func claimVoucher(w http.ResponseWriter, r *http.Request) { //TODO: add in concu
 }
 
 func reloadLocalCache(w http.ResponseWriter, r *http.Request) {
+
+	//check validation of apikey in header
+	if !validateAPIKey(r) {
+		errorResponse(w, "API key is unauthorized, Request", http.StatusUnauthorized)
+		ErrorLogger.Println("API key is unauthorized")
+		return
+	}
+
 	//reset linked list
 	err := branchList.deleteAllNodes()
 	if err != nil {

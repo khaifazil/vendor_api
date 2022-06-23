@@ -49,8 +49,8 @@ create table consumed_vouchers
 create table api_key
 (
     ID  int         not null
-        primary key,
-    API varchar(45) not null,
+        primary key auto_increment,
+    API_Key varchar(90) not null,
     constraint API_UNIQUE
-        unique (API)
+        unique (API_Key)
 );

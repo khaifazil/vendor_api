@@ -28,6 +28,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/", home)
 	//router.HandleFunc("/vendorAPI/v1/process_voucher", processVoucher).Methods("POST")
+	router.HandleFunc("/api/v1/merchants/apikey/new", getNewApiKey).Methods("GET")
 	router.HandleFunc("/api/v1/merchants/consume_voucher", consumeVoucher).Methods("POST")
 	router.HandleFunc("/api/v1/merchants/", CreateMerchant).Methods("POST")
 	router.HandleFunc("/api/v1/merchants/{merchantID}/branches", addBranches).Methods("POST")
