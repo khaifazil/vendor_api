@@ -27,50 +27,6 @@ func readVoucher(data []byte) (Voucher, error) {
 	return newVoucher, nil
 }
 
-//func validateVoucher(w http.ResponseWriter, v Voucher) error {
-//	url := "https://localhost:5000/voucherAPI/validate"
-//
-//	jsonValue, err := json.Marshal(v)
-//	if err != nil {
-//		ErrorLogger.Println("unable to marshal JSON: ", err)
-//		return err
-//	}
-//
-//	_, err = http.Post(url, "application/json", bytes.NewReader(jsonValue))
-//	if err != nil {
-//		return err
-//	} else {
-//		w.WriteHeader(http.StatusAccepted)
-//	}
-//	return nil
-//}
-
-//func processVoucher(w http.ResponseWriter, r *http.Request) {
-//
-//	reqBody, err := ioutil.ReadAll(r.Body)
-//	if err != nil {
-//		http.Error(w, "Please supply voucher information in JSON format", http.StatusUnprocessableEntity)
-//		ErrorLogger.Println("unable to read request body:", err)
-//		return
-//	}
-//
-//	voucher, err := readVoucher(reqBody)
-//	if err != nil {
-//		http.Error(w, "Please supply voucher information in JSON format", http.StatusUnprocessableEntity)
-//		ErrorLogger.Println("unable to read voucher:", err)
-//		return
-//	}
-//
-//	err = validateVoucher(w, voucher)
-//	if err != nil {
-//		http.Error(w, "Unable to send voucher validation request", http.StatusUnprocessableEntity)
-//		ErrorLogger.Println("Unable to send voucher validation POST request:", err)
-//		return
-//	}
-//	w.WriteHeader(http.StatusAccepted)
-//	w.Write([]byte("Voucher sent for validation"))
-//}
-
 func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -120,12 +76,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 		if voucher.IsValidated == true {
 			voucher.IsConsumed = true
 
-			err := branchList.storeConsumed(voucher)
-			if err != nil {
-				errorResponse(w, err.Error(), 422)
-				ErrorLogger.Println(err)
-				return
-			}
+			branchList.storeConsumed(voucher)
 
 			db := openDatabase()
 			defer db.Close()
@@ -146,7 +97,7 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurrency
+func (d *doublyLinkedList) storeConsumed(v Voucher) {
 
 	//Open database
 	db := openDatabase()
@@ -154,42 +105,49 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) error { //TODO: add concurre
 	defer fmt.Println("Database closed")
 
 	//check if branch is in linked-list
-	b, exist := d.searchListForNode(v.BranchID)
-	if !exist { // if branch does not exist, check DB
-		var (
-			name       string
-			merchantID string
-			amount     int
-			branchCode string
-		)
-		//query row and returns data needed
-		err := db.QueryRow("SELECT Name, MerchantID, Amount_owed, Branch_Code FROM merchant_branches WHERE Branch_ID = ?", v.BranchID).Scan(&name, &merchantID, &amount, &branchCode)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return fmt.Errorf("unable to query db: %v", err)
+	wg.Add(1)
+	go func() {
+		b, exist := d.searchListForNode(v.BranchID)
+		if !exist { // if branch does not exist, check DB
+			var (
+				name       string
+				merchantID string
+				amount     int
+				branchCode string
+			)
+			//query row and returns data needed
+			err := db.QueryRow("SELECT Name, MerchantID, Amount_owed, Branch_Code FROM merchant_branches WHERE Branch_ID = ?", v.BranchID).Scan(&name, &merchantID, &amount, &branchCode)
+			if err != nil {
+				if err != sql.ErrNoRows {
+					ErrorLogger.Panicln("unable to query db: %v", err)
+				}
+				ErrorLogger.Panicln("unable to query db: %v", err)
 			}
-			return fmt.Errorf("branch does not exists in database: %v", err)
+			//creates new branch node
+			newBranch := &branch{
+				BranchID:          v.BranchID,
+				Name:              name,
+				BranchCode:        branchCode,
+				MerchantID:        merchantID,
+				AmountOwed:        0,
+				UnclaimedVouchers: nil,
+			}
+			newBranch.UnclaimedVouchers = append(newBranch.UnclaimedVouchers, v)
+			newBranch.AmountOwed += v.Amount
+			branchList.addEndNode(*newBranch) //adds to linked list
+		} else {
+			b.Data.UnclaimedVouchers = append(b.Data.UnclaimedVouchers, v)
+			b.Data.AmountOwed += v.Amount
 		}
-		//creates new branch node
-		newBranch := &branch{
-			BranchID:          v.BranchID,
-			Name:              name,
-			BranchCode:        branchCode,
-			MerchantID:        merchantID,
-			AmountOwed:        0,
-			UnclaimedVouchers: nil,
-		}
-		newBranch.UnclaimedVouchers = append(newBranch.UnclaimedVouchers, v)
-		newBranch.AmountOwed += v.Amount
-		branchList.addEndNode(*newBranch) //adds to linked list
-	} else {
-		b.Data.UnclaimedVouchers = append(b.Data.UnclaimedVouchers, v)
-		b.Data.AmountOwed += v.Amount
-	}
+		wg.Done()
+	}()
 	//stores voucher into DB
-	if err := insertVoucherDB(v, db); err != nil {
-		ErrorLogger.Panicf("unable to insert into database: %v", err)
-	}
-
-	return nil
+	wg.Add(1)
+	go func() {
+		if err := insertVoucherDB(v, db); err != nil {
+			ErrorLogger.Panicf("unable to insert into database: %v", err)
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 }

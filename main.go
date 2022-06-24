@@ -41,7 +41,7 @@ func main() {
 	router.HandleFunc("/api/v1/merchants/claim_vouchers", claimVoucher).Methods("PUT")
 	router.HandleFunc("/api/v1/merchants/reload", reloadLocalCache).Methods("PUT")
 
-	fmt.Println("Listening on port 9091")
+	fmt.Printf("Listening on port %v\n", serverAddress)
 	err := http.ListenAndServeTLS(serverAddress, "./SSL/localhost.cert.pem", "./SSL/localhost.key.pem", router)
 	if err != nil {
 		ErrorLogger.Fatal("Error:", err)

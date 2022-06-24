@@ -128,8 +128,8 @@ func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) 
 	var sliceToSend []Voucher
 
 	if (pageIndex * recordsPerPage) > len(allVouchers) {
-		errorResponse(w, "Page_index is out of bounds total pages", http.StatusBadRequest)
-		ErrorLogger.Println("400 - Page_index is out of bounds total pages")
+		errorResponse(w, "Page_index is out of bounds of total pages", http.StatusBadRequest)
+		ErrorLogger.Println("400 - Page_index is out of bounds of total pages")
 		return
 	} else if (pageIndex*recordsPerPage)+recordsPerPage > len(allVouchers) {
 		sliceToSend = allVouchers[(pageIndex * recordsPerPage):]
@@ -149,7 +149,7 @@ func (d *doublyLinkedList) sendVouchers(w http.ResponseWriter, r *http.Request) 
 	//fmt.Printf("%+v", sliceToSend)
 }
 
-func claimVoucher(w http.ResponseWriter, r *http.Request) { //TODO: add in concurrency
+func claimVoucher(w http.ResponseWriter, r *http.Request) {
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
@@ -173,6 +173,7 @@ func claimVoucher(w http.ResponseWriter, r *http.Request) { //TODO: add in concu
 	defer closeDatabase(db)
 
 	for _, voucher := range results {
+
 		_, err := db.Exec("UPDATE consumed_vouchers SET Is_Claimed = true WHERE VID = ?", voucher.VID)
 		if err != nil {
 			errorResponse(w, "Error updating database", 500)

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -219,49 +221,151 @@ func getAllMerchants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var (
-		merchant_ID string
-		name        string
-		isActive    bool
-	)
+	//process url queries
+	values := r.URL.Query()
 
-	var merchants []MerchantData
+	pageIndex, err := strconv.Atoi(values.Get("page_index"))
+	if err != nil {
+		errorResponse(w, "URL query not found", http.StatusBadRequest)
+		ErrorLogger.Println("400 - URL query not found")
+		return
+	}
+	recordsPerPage, err := strconv.Atoi(values.Get("records_per_page"))
+	if err != nil {
+		errorResponse(w, "URL query not found", http.StatusBadRequest)
+		ErrorLogger.Println("400 - URL query not found")
+		return
+	}
+
 	db := openDatabase()
 	defer db.Close()
-	defer fmt.Println("Database closed")
 
-	rows, err := db.Query("SELECT * FROM merchants")
+	rows, err := db.Query("SELECT COUNT(*) FROM merchants")
 	if err != nil {
-		if err == sql.ErrNoRows {
-			errorResponse(w, "there are no merchants in database", http.StatusBadRequest)
-			ErrorLogger.Println("there are no merchants in database", err)
-			return
+		errorResponse(w, "unable to query database", http.StatusInternalServerError)
+		ErrorLogger.Println("unable to scan rows", err)
+		return
+	}
+	var count int
+	for rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			log.Fatal(err)
 		}
+	}
+	fmt.Println(count)
+
+	rows, err = db.Query("SELECT * FROM merchants")
+	if err != nil {
+		errorResponse(w, "unable to query database", http.StatusInternalServerError)
+		ErrorLogger.Println("unable to scan rows", err)
+		return
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		if err = rows.Scan(&merchant_ID, &name, &isActive); err != nil {
-			errorResponse(w, "unable to query database", http.StatusInternalServerError)
-			ErrorLogger.Println("unable to scan rows", err)
-			return
-		}
+	var (
+		merchant_ID   string
+		merchantName  string
+		isActive      bool
+		branchID      string
+		branchName    string
+		branchCode    string
+		amountOwed    int
+		amountClaimed int
+	)
 
-		temp := MerchantData{
-			MerchantID:   merchant_ID,
-			MerchantName: name,
-			IsActive:     isActive,
-		}
+	type tempBranch struct {
+		BranchID      string `json:"branchID"`
+		Name          string `json:"name"`
+		BranchCode    string `json:"branchCode"`
+		MerchantID    string `json:"merchantID"`
+		AmountOwed    int    `json:"amountOwed"`
+		AmountClaimed int    `json:"amountClaimed"`
+	}
 
-		merchants = append(merchants, temp)
+	type merchantAndBranch struct {
+		MerchantID   string       `json:"merchantID"`
+		MerchantName string       `json:"merchantName"`
+		IsActive     bool         `json:"isActive"`
+		Branches     []tempBranch `json:"branches"`
+	}
+
+	var merchantsAndBranches []merchantAndBranch
+
+	wg.Add(count)
+	go func() {
+		for rows.Next() {
+
+			if err = rows.Scan(&merchant_ID, &merchantName, &isActive); err != nil {
+				errorResponse(w, "unable to query database", http.StatusInternalServerError)
+				ErrorLogger.Println("unable to scan rows", err)
+				return
+			}
+
+			branch, err := db.Query("SELECT * FROM merchant_branches WHERE MerchantID = ?", merchant_ID)
+			if err != nil {
+				errorResponse(w, "unable to query database", http.StatusInternalServerError)
+				ErrorLogger.Println("unable to scan rows", err)
+				return
+			}
+			defer branch.Close()
+
+			var branchSlice []tempBranch
+
+			for branch.Next() {
+				if err = branch.Scan(&branchID, &branchName, &branchCode, &merchant_ID, &amountOwed, &amountClaimed); err != nil {
+					errorResponse(w, "unable to query database", http.StatusInternalServerError)
+					ErrorLogger.Println("unable to scan rows", err)
+					return
+				}
+
+				tempBranch := tempBranch{
+					BranchID:      branchID,
+					Name:          branchName,
+					BranchCode:    branchCode,
+					MerchantID:    merchant_ID,
+					AmountOwed:    amountOwed,
+					AmountClaimed: amountClaimed,
+				}
+
+				branchSlice = append(branchSlice, tempBranch)
+			}
+
+			temp := merchantAndBranch{
+				MerchantID:   merchant_ID,
+				MerchantName: merchantName,
+				IsActive:     isActive,
+				Branches:     branchSlice,
+			}
+			merchantsAndBranches = append(merchantsAndBranches, temp)
+			wg.Done()
+
+		}
+	}()
+	wg.Wait()
+
+	if merchantsAndBranches == nil {
+		errorResponse(w, "there are no merchants in database", http.StatusBadRequest)
+		ErrorLogger.Println("there are no merchants in database", err)
+		return
+	}
+
+	var sliceToSend []merchantAndBranch
+	if (pageIndex * recordsPerPage) > len(merchantsAndBranches) {
+		errorResponse(w, "Page_index is out of bounds of total pages", http.StatusBadRequest)
+		ErrorLogger.Println("400 - Page_index is out of bounds of total pages")
+		return
+	} else if (pageIndex*recordsPerPage)+recordsPerPage > len(merchantsAndBranches) {
+		sliceToSend = merchantsAndBranches[(pageIndex * recordsPerPage):]
+	} else {
+		sliceToSend = merchantsAndBranches[(pageIndex * recordsPerPage) : (pageIndex*recordsPerPage)+recordsPerPage]
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(struct {
-		Ok   bool           `json:"ok"`
-		Msg  string         `json:"msg"`
-		Data []MerchantData `json:"data"`
-	}{true, "[MS-MERCHANTS]: retrieval of list of merchants, successful", merchants})
+		Ok   bool                `json:"ok"`
+		Msg  string              `json:"msg"`
+		Data []merchantAndBranch `json:"data"`
+	}{true, "[MS-MERCHANTS]: retrieval of list of merchants, successful", sliceToSend})
 }
 
 func addBranches(w http.ResponseWriter, r *http.Request) {
