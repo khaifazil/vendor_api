@@ -78,13 +78,6 @@ func consumeVoucher(w http.ResponseWriter, r *http.Request) {
 
 			branchList.storeConsumed(voucher)
 
-			db := openDatabase()
-			defer db.Close()
-			defer fmt.Println("Database Closed")
-
-			//update merchant database amount owed
-			db.Query("UPDATE merchant_branches SET Amount_owed = Amount_owed + ? WHERE Branch_ID = ?", voucher.Amount, voucher.BranchID)
-
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(200)
 			json.NewEncoder(w).Encode(struct {
@@ -145,6 +138,11 @@ func (d *doublyLinkedList) storeConsumed(v Voucher) {
 	wg.Add(1)
 	go func() {
 		if err := insertVoucherDB(v, db); err != nil {
+			ErrorLogger.Panicf("unable to insert into database: %v", err)
+		}
+		//update merchant database amount owed
+		_, err := db.Exec("UPDATE merchant_branches SET Amount_owed = Amount_owed + ? WHERE Branch_ID = ?", v.Amount, v.BranchID)
+		if err != nil {
 			ErrorLogger.Panicf("unable to insert into database: %v", err)
 		}
 		wg.Done()

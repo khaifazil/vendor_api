@@ -161,7 +161,7 @@ func CreateMerchant(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getMerchant(w http.ResponseWriter, r *http.Request) {
+func getMerchant(w http.ResponseWriter, r *http.Request) { //TODO: retrieve branches as well
 
 	//check validation of apikey in header
 	if !validateAPIKey(r) {
